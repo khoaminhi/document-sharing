@@ -662,7 +662,7 @@ Class Mongo_db
      *  @param    float   $number_end    <number2>
      *  @return   $this
      */
-    public function where_beth(string $field = '', float $number_start = null, float $number_end = null): self
+    public function where_beth(float $number_start, float $number_end, string $field = ''): self
     {
         if ($field != '' && isset($number_start, $number_end))
         {
@@ -716,7 +716,7 @@ Class Mongo_db
      *  @param    float   $number_end    <number2>
      *  @return   $this
      */
-    public function where_beth_equal(string $field = '', float $number_start = null, float $number_end = null): self
+    public function where_beth_equal(float $number_start, float $number_end, string $field = ''): self
     {
         if ($field != '' && isset($number_start, $number_end))
         {
@@ -770,7 +770,7 @@ Class Mongo_db
      *  @param    float   $number_end    <number2>
      *  @return   $this
      */
-    public function where_nbeth(string $field = '', float $number_start = null, float $number_end = null): self
+    public function where_nbeth(float $number_start, float $number_end, string $field = ''): self
     {
         if ($field != '' && isset($number_start, $number_end))
         {
@@ -824,7 +824,7 @@ Class Mongo_db
      *  @param    float   $number_end    <number2>
      *  @return   $this
      */
-    public function where_nbeth_equal(string $field = '', float $number_start = null, float $number_end = null): self
+    public function where_nbeth_equal(float $number_start, float $number_end, string $field = ''): self
     {
         if ($field != '' && isset($number_start, $number_end))
         {
@@ -1504,7 +1504,7 @@ Class Mongo_db
      *  @param    float   $remainder  [Remainder value]
      *  @return   $this
      */
-    public function where_mod(string $field = '', float $divisor = null, float $remainder = null): self
+    public function where_mod(float $divisor, float $remainder, string $field = ''): self
     {
         if ($field != '' && isset($divisor, $remainder))
         {
@@ -3675,7 +3675,7 @@ Class Mongo_db
      *  @param    int     $number  <number>
      *  @return   $this
      */
-    public function bit(string $field = '', string $type = '', int $number = null): self
+    public function bit(int $number, string $type = '', string $field = ''): self
     {
         $type_variants = ['and', 'or', 'xor'];
 
@@ -4688,7 +4688,7 @@ Class Mongo_db
      *  @param   mixed   $data   [Data]
      *  @return  $this
      */
-    private function push_where_field(string $field = '', $data = null): self
+    private function push_where_field($data, string $field = ''): self
     {
         if ($field != '' && isset($data))
         {
@@ -4718,7 +4718,7 @@ Class Mongo_db
      *  @param   mixed   $data      [Data]
      *  @return  $this
      */
-    private function push_update_method(string $operator = '', $data = null): self
+    private function push_update_method($data, string $operator = ''): self
     {
         if ($operator != '' && isset($data))
         {
@@ -4749,7 +4749,7 @@ Class Mongo_db
      *  @param   mixed   $data   [Data]
      *  @return  $this
      */
-    private function push_select_field(string $field = '', $data = null): self
+    private function push_select_field($data, string $field = ''): self
     {
         if ($field != '' && isset($data))
         {
@@ -4780,7 +4780,7 @@ Class Mongo_db
      *  @param   mixed   $data   [Data]
      *  @return  $this
      */
-    private function push_sort_field(string $field = '', $data = null): self
+    private function push_sort_field($data, string $field = ''): self
     {
         if ($field != '' && isset($data))
         {

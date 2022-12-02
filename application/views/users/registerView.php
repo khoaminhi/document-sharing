@@ -1,6 +1,4 @@
 <?php //echo validation_errors(); ?>
-<?php echo validation_errors('<div class="alert alert-danger">', '</div>'); ?>
-<?php echo form_error('email', '<div class="alert alert-danger">', '</div>')?>
 <div class="container">
     <div class="d-flex justify-content-center">
         <div>
@@ -28,7 +26,7 @@
             ?>
         </div>
         <div>
-            <h4 class="text-center">Đăng ký tài liệu</h4>
+            <h4 class="text-center mt-5">Đăng ký tài liệu</h4>
             <form class="was-validated mb-3" method="POST">
                 <div class="row">
                     <div class="col-md-12">
@@ -41,12 +39,14 @@
                     <div class="col-md-12">
                         <label for="name">Tên (*)</label>
                         <input type="input" class="form-control" id="name" name="name" oninvalid="this.setCustomValidity('Vui lòng điền thông tin!')" onchange="this.setCustomValidity('')" required>
+                        <?php echo form_error('name', '<div class="alert alert-danger">', '</div>')?>
                     </div>
                 </div><br />
                 <div class="row">
                     <div class="col-md-6">
                         <label for="name">Tuổi (*)</label>
                         <input type="number" min="1" class="form-control" id="age" name="age" oninvalid="this.setCustomValidity('Vui lòng điền thông tin!')" onchange="this.setCustomValidity('')" required>
+                        <?php echo form_error('age', '<div class="alert alert-danger">', '</div>')?>
                     </div>
                     <div class="col-md-6">
                         <div class="form-group">
@@ -79,7 +79,7 @@
                 </div>
             </form>
             <div class="text-center mt-3">
-                Không nhập được mã? <a href="/document-sharing/user/sendcode">Gửi lại mã</a>
+                Không nhận được mã? <a href="/document-sharing/user/sendcode">Gửi lại mã</a>
             </div>
         </div>
 
