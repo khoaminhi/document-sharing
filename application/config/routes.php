@@ -66,3 +66,5 @@ $route['user/verifyregister']['post'] = 'usercontroller/verifyAndRegister';
 $route['user/(:any)']['get'] = 'usercontroller/findOneById/$1';
 $route['encrypt'] = 'usercontroller/demoEncrypt';
 $route['jwt'] = 'usercontroller/demoJwt';
+$route['user/resendotp'] = 'usercontroller/resendOtp';
+

@@ -78,20 +78,13 @@
                     <button type="submit" class="btn btn-success">Đăng ký</button>
                 </div>
             </form>
-            <div class="text-center mt-3">
-                Không nhận được mã? <a href="/document-sharing/user/sendcode">Gửi lại mã</a>
-            </div>
+            <!-- <div class="text-center mt-3">
+                Không nhận được mã? <a href="/document-sharing/user/resendotp">Gửi lại mã</a>
+            </div> -->
         </div>
 
     </div>
 </div>
-<script>
-    $(window).on('load', function() {
-        $('#warningRelPersonModal').modal('show');
-    });
-    $(document).ready(() => {
-        $('#hideNoticeRelPerson').click(() => {
-            $('#warningRelPersonModal').modal('hide');
-        })
-    })
+<script>    
+    
 </script>

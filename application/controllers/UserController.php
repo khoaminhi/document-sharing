@@ -1,4 +1,7 @@
 <?php
+use TheSeer\Tokenizer\Exception;
+use function PHPUnit\Framework\throwException;
+
 defined('BASEPATH') or exit('No direct script access allowed');
 require 'C:\xampp\htdocs\document-sharing\vendor\autoload.php';
 // require 'vendor/autoload.php';
@@ -15,12 +18,14 @@ $redisClient = new RedisClient([
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
+use Firebase\JWT\SignatureInvalidException;
 
 
 class UserController extends CI_Controller
 {
     // public $redisClient = GLOBAL['redisClient'];
-    function __construct() {
+    function __construct()
+    {
         parent::__construct();
         $this->redisClient = new RedisClient([
             'host' => 'localhost',
@@ -77,11 +82,16 @@ class UserController extends CI_Controller
                 $this->load->view('commons/headHtml');
                 $this->load->view('users/registerView', $dataView);
                 $this->load->view('commons/bodyHtml');
+                return;
             }
 
-            // cache otp by redis
+            // generate otp
             $sixDigitRandomNumber = random_int(100000, 999999);
-            $otpRedisKey = "email:" . (string) $this->input->post('email');
+
+            // verify email by sending code
+
+            // cache otp by redis
+            $otpRedisKey = "email_otp:" . (string) $this->input->post('email');
             $this->redisClient->set($otpRedisKey, $sixDigitRandomNumber, 'EX', 180); // 3 minutes
             $otpRedis = $this->redisClient->get($otpRedisKey);
 
@@ -89,9 +99,6 @@ class UserController extends CI_Controller
                 echo 'Lỗi server. Không cache được otp';
                 return;
             }
-            die;
-            // verify email by sending code
-
 
             // hash, encrypt to secure and verify data
             foreach ($inputFields as $field) {
@@ -99,7 +106,7 @@ class UserController extends CI_Controller
             }
             // jwt
             $jwt = JWT::encode($userRegisterInfo, $this->config->item('jwt_key'), 'HS256');
-
+            
             // encrypt
             $this->load->library('encryption');
             $userEncryptRegisterInfo = $this->encryption->encrypt($jwt);
@@ -109,15 +116,6 @@ class UserController extends CI_Controller
             $this->load->view('commons/headHtml');
             $this->load->view('users/verifyView', $dataView);
             $this->load->view('commons/bodyHtml');
-            // create verifying url that contains user infomation
-            // foreach ($inputFields as $field) {
-            //     $urlVerify .= $field . "=" . urlencode($this->input->post($field)) . "&";
-            // }
-
-            // redirect($urlVerify);
-            // print_r($checkInsertUserResult);
-            // sleep(5);
-            // print_r($result);
         } catch (Exception $e) {
             echo 'UserController Error: ', $e->getMessage(), "\n";
         }
@@ -134,6 +132,7 @@ class UserController extends CI_Controller
     {
         try {
             $dataView = array();
+            $inputFields = ['code', 'data'];
 
             // load form rule for registering user form => form_rule_register_user
             $this->load->helper('form_rules');
@@ -145,7 +144,9 @@ class UserController extends CI_Controller
 
             // show errors
             if ($this->form_validation->run() == FALSE) {
-                $dataView['resultForModal'] = 'Dữ liệu xác minh đăng ký không đúng. Vui lòng đăng ký lại';
+                $dataView['resultForModal'] = 'Dữ liệu xác minh đăng ký không đúng. Vui lòng đăng ký lại' 
+                    . form_error('code') . form_error('data');
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
                 $this->load->view('commons/headHtml');
                 $this->load->view('users/verifyView', $dataView);
                 $this->load->view('commons/bodyHtml');
@@ -163,42 +164,55 @@ class UserController extends CI_Controller
             /**
              * Check otp
              */
-
-
-            foreach ($inputFields as $field) {
-                $userDocument[$field] = $this->input->get($field);
+            $otpRedisKey = "email_otp:" . (string) $userJwtRegisterInfo['email'];
+            $otpRedisValue = $this->redisClient->get($otpRedisKey);
+            if (empty($otpRedisValue)) {
+                // resend otp code
+                $dataView['resultForModal'] = 'Mã otp đã hết hạn. Vui lòng chọn gửi lại mã phía dưới';
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+                $this->load->view('commons/headHtml');
+                $this->load->view('users/verifyView', $dataView);
+                $this->load->view('commons/bodyHtml');
+                return;
             }
 
+            if ($this->input->post('code') != $otpRedisValue) {
+                $dataView['resultForModal'] = 'Mã otp không đúng';
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+                $this->load->view('commons/headHtml');
+                $this->load->view('users/verifyView', $dataView);
+                $this->load->view('commons/bodyHtml');
+                return;
+            }
 
             // insert
             $this->load->model('userModel');
-            $result = $this->userModel->insertUser($userDocument); // return document _id
+            $result = $this->userModel->insertUser($userJwtRegisterInfo); // return document _id
 
             // check insert
             $checkInsertUserResult = $this->userModel->findOne($result);
             if (empty($checkInsertUserResult)) {
                 $dataView['resultForModal'] = 'Đăng ký người dùng thất bại';
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
                 $this->load->view('commons/headHtml');
                 $this->load->view('users/registerView', $dataView);
                 $this->load->view('commons/bodyHtml');
                 return;
             } else {
-                if ($checkInsertUserResult['email'] !== $this->input->get('email')) {
-                    $dataView['resultForModal'] = 'Lưu thông tin người đăng ký sai sót';
+                if ($checkInsertUserResult['email'] !== $userJwtRegisterInfo['email']) {
+                    $dataView['resultForModal'] = 'Lưu thông tin người đăng ký có sai sót';
+                    $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+                    $this->load->view('commons/headHtml');
                     $this->load->view('users/registerView', $dataView);
                     $this->load->view('commons/bodyHtml');
                     return;
                 }
             }
 
-
-
             $dataView['resultForModal'] = 'Đăng ký nhận tài liệu thành công. Hãy mở hộp thư email của bạn để tải tài liệu';
+            $this->load->view('commons/headHtml');
             $this->load->view('users/registerView', $dataView);
             $this->load->view('commons/bodyHtml');
-            // print_r($checkInsertUserResult);
-            // sleep(5);
-            // print_r($result);
         } catch (Exception $e) {
             if ($e instanceof UnexpectedValueException) {
                 echo 'Bạn đã thay đổi thông tin đoạn mã';
@@ -206,6 +220,98 @@ class UserController extends CI_Controller
             }
 
             echo 'UserController Error: ', $e->getMessage(), "\n";
+        }
+    }
+
+    public function resendOtpView() {
+        
+    }
+
+    public function resendOtp() {
+        try {
+            $dataView = array();
+            $inputFields = ['data'];
+
+            // load form rule
+            $this->load->helper('form_rules');
+
+            $this->load->helper(array('form', 'url'));
+            $this->load->library('form_validation');
+
+            $this->form_validation->set_rules(form_rule_resendotp());
+
+            // show form validation errors
+            if ($this->form_validation->run() == FALSE) {
+                $response = array(
+                    'message' => 'Dữ liệu đã bị thay đổi quý khách vui lòng đăng ký lại. Lỗi: ' . form_error('data')
+                );
+                $this->output
+                    ->set_status_header(400)
+                    ->set_content_type('application/json', 'utf-8')
+                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                
+                return;
+            }
+
+            /**
+             * decrypt and verify data
+             * if fail to verify, it throw an error and catch them at catch
+             */
+            $this->load->library('encryption');
+            $userDecryptRegisterInfo = $this->encryption->decrypt($this->input->post('data'));
+            $userJwtRegisterInfo = (array) JWT::decode($userDecryptRegisterInfo, new Key($this->config->item('jwt_key'), 'HS256'));
+
+            // generate otp
+            $sixDigitRandomNumber = random_int(100000, 999999);
+
+            // resend otp code by email
+
+            // cache otp by redis
+            $otpRedisKey = "email_otp:" . (string) $userJwtRegisterInfo['email'];
+            $this->redisClient->set($otpRedisKey, $sixDigitRandomNumber, 'EX', 180); // 3 minutes
+            $otpRedis = $this->redisClient->get($otpRedisKey);
+
+            if ($otpRedis != $sixDigitRandomNumber) {
+                $response = array(
+                    'message' => 'Lỗi máy chủ. Ghi bộ nhớ cache không thành công'
+                );
+                $this->output
+                    ->set_status_header(400)
+                    ->set_content_type('application/json', 'utf-8')
+                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
+                    ->_display();
+                return;
+            }
+
+            $response = array(
+                'message' => 'Gửi mã otp thành công. Quý khách vui lòng kiểm tra hộp thư.
+                            Hệ thống sẽ tự chuyển sang trang xác minh otp sau 5 giây.'
+            );
+            $this->output
+                ->set_status_header(200)
+                ->set_content_type('application/json', 'utf-8')
+                ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        } catch (Exception $e) {
+            if ($e instanceof UnexpectedValueException) {
+                $response = array(
+                    'message' => 'Dữ liệu đã bị thay đổi quý khách vui lòng đăng ký lại. Error: ' . $e->getMessage()
+                );
+                $this->output
+                    ->set_status_header(400)
+                    ->set_content_type('application/json', 'utf-8')
+                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                return;
+            }
+
+            $response = array(
+                'message' => 'Lỗi máy chủ. Error: ' . $e->getMessage()
+            );
+            $this->output
+                ->set_status_header(400)
+                ->set_content_type('application/json', 'utf-8')
+                ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+            return;
         }
     }
 
@@ -237,7 +343,19 @@ class UserController extends CI_Controller
         echo '
         
         ';
-        $decoded = JWT::decode($jwt, new Key($this->config->item('jwt_key'), 'HS256'));
+        $decoded = "";
+        try {
+            $decoded = JWT::decode($jwt . " f", new Key($this->config->item('jwt_key'), 'HS256'));
+        } catch (Exception $e) {
+            echo "helo";
+            if ($e instanceof UnexpectedValueException) {
+                echo "Decoded Jwt Error" . $e->getMessage();
+                return;
+            }
+
+            echo "Internal server error";
+            return;
+        }
 
         print_r($decoded);
     }

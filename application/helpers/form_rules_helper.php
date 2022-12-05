@@ -126,3 +126,37 @@ if (!function_exists('form_rule_verify_user')) {
 }
 
 // ------------------------------------------------------------------------
+
+if (!function_exists('form_rule_resendotp')) {
+    /**
+     * Return the array of rules for validating otp form
+     * return array(
+            array(
+                'field' => 'data',
+                'label' => 'Dữ liệu',
+                'rules' => 'required|min_length[1]',
+                'errors' => array(
+                    'required' => 'Bạn đã chỉnh sửa đoạn mã %s.',
+                    'min_length' => 'Đoạn mã dữ liệu phải có'
+                ),
+            ),
+     * @return	array
+     */
+    function form_rule_resendotp()
+    {
+        return array(
+            array(
+                'field' => 'data',
+                'label' => 'Dữ liệu',
+                'rules' => 'required|min_length[1]',
+                'errors' => array(
+                    'required' => 'Bạn đã chỉnh sửa đoạn mã %s?.',
+                    'min_length' => 'Đoạn mã dữ liệu phải có'
+                ),
+            ),
+        );
+    }
+}
+
+// ------------------------------------------------------------------------
+
