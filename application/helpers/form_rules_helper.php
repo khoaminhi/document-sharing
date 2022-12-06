@@ -160,3 +160,37 @@ if (!function_exists('form_rule_resendotp')) {
 
 // ------------------------------------------------------------------------
 
+if (!function_exists('form_mail_send')) {
+    /**
+     * Return the array of rules for validating otp form
+     * return array(
+            array(
+                'field' => 'to',
+                'label' => 'người nhận',
+                'rules' => 'required|valid_email',
+                'errors' => array(
+                    'required' => 'Bạn phải truyền %s.',
+                    'valid_email' => 'Bạn phải truyền chính xác là email'
+                ),
+            ),
+            ...
+     * @return	array
+     */
+    function form_mail_send()
+    {
+        return array(
+            array(
+                'field' => 'to',
+                'label' => 'người nhận mail',
+                'rules' => 'required|valid_email',
+                'errors' => array(
+                    'required' => 'Bạn phải truyền %s.',
+                    'valid_email' => 'Bạn phải truyền chính xác là email'
+                ),
+            ),
+        );
+    }
+}
+
+// ------------------------------------------------------------------------
+

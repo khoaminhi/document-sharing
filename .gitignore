@@ -30,3 +30,7 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 *.sublime-project
 /tests/tests/
 /tests/results/
+
+# My email config
+application/config/email.php
+application/config/config.php

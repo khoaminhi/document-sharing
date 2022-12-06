@@ -89,6 +89,19 @@ class UserController extends CI_Controller
             $sixDigitRandomNumber = random_int(100000, 999999);
 
             // verify email by sending code
+            $message = "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+                <h2>$sixDigitRandomNumber</h2></div>
+            ";
+            $this->load->helper('my_mail');
+            $result = send_mail($this->input->post('email'), $message);
+
+            if (!$result) {
+                $dataView['resultForModal'] = 'Gửi mã otp thất bại. Quý khách vui lòng đăng ký lại';
+                $this->load->view('commons/headHtml');
+                $this->load->view('users/registerView', $dataView);
+                $this->load->view('commons/bodyHtml');
+                return;
+            }
 
             // cache otp by redis
             $otpRedisKey = "email_otp:" . (string) $this->input->post('email');
@@ -106,7 +119,7 @@ class UserController extends CI_Controller
             }
             // jwt
             $jwt = JWT::encode($userRegisterInfo, $this->config->item('jwt_key'), 'HS256');
-            
+
             // encrypt
             $this->load->library('encryption');
             $userEncryptRegisterInfo = $this->encryption->encrypt($jwt);
@@ -144,7 +157,7 @@ class UserController extends CI_Controller
 
             // show errors
             if ($this->form_validation->run() == FALSE) {
-                $dataView['resultForModal'] = 'Dữ liệu xác minh đăng ký không đúng. Vui lòng đăng ký lại' 
+                $dataView['resultForModal'] = 'Dữ liệu xác minh đăng ký không đúng. Vui lòng đăng ký lại'
                     . form_error('code') . form_error('data');
                 $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
                 $this->load->view('commons/headHtml');
@@ -209,6 +222,9 @@ class UserController extends CI_Controller
                 }
             }
 
+            // send document link
+
+
             $dataView['resultForModal'] = 'Đăng ký nhận tài liệu thành công. Hãy mở hộp thư email của bạn để tải tài liệu';
             $this->load->view('commons/headHtml');
             $this->load->view('users/registerView', $dataView);
@@ -223,11 +239,13 @@ class UserController extends CI_Controller
         }
     }
 
-    public function resendOtpView() {
-        
+    public function resendOtpView()
+    {
+
     }
 
-    public function resendOtp() {
+    public function resendOtp()
+    {
         try {
             $dataView = array();
             $inputFields = ['data'];
@@ -249,7 +267,7 @@ class UserController extends CI_Controller
                     ->set_status_header(400)
                     ->set_content_type('application/json', 'utf-8')
                     ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-                
+
                 return;
             }
 
@@ -265,6 +283,25 @@ class UserController extends CI_Controller
             $sixDigitRandomNumber = random_int(100000, 999999);
 
             // resend otp code by email
+            $message = "<div style='display: block; text-align: center;'>
+                    <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+                    <h2>$sixDigitRandomNumber</h2>
+                </div>
+            ";
+            $this->load->helper('my_mail');
+            $result = send_mail((string) $userJwtRegisterInfo['email'], $message);
+
+            if (!$result) {
+                $response = array(
+                    'message' => 'Gửi mã otp thất bại. Quý khách vui lòng thực hiện gửi lại'
+                );
+                $this->output
+                    ->set_status_header(500)
+                    ->set_content_type('application/json', 'utf-8')
+                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
+                    ->_display();
+                return;
+            }
 
             // cache otp by redis
             $otpRedisKey = "email_otp:" . (string) $userJwtRegisterInfo['email'];
@@ -284,14 +321,15 @@ class UserController extends CI_Controller
             }
 
             $response = array(
-                'message' => 'Gửi mã otp thành công. Quý khách vui lòng kiểm tra hộp thư.
-                            Hệ thống sẽ tự chuyển sang trang xác minh otp sau 5 giây.'
+                'message' => 'Gửi mã otp thành công. Quý khách vui lòng kiểm tra hộp thư.'
+                            
             );
             $this->output
                 ->set_status_header(200)
                 ->set_content_type('application/json', 'utf-8')
                 ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         } catch (Exception $e) {
+            echo $e;
             if ($e instanceof UnexpectedValueException) {
                 $response = array(
                     'message' => 'Dữ liệu đã bị thay đổi quý khách vui lòng đăng ký lại. Error: ' . $e->getMessage()
@@ -331,6 +369,14 @@ class UserController extends CI_Controller
         }
     }
 
+    public function demoSendMail()
+    {
+        $this->load->helper('my_mail');
+        $result = send_mail('khoa.pham@southtelecom.vn', 'abc', 'abc');
+        echo gettype(($result)); //boolean
+        echo $result;
+        print_r($result);
+    }
     public function demoJwt()
     {
         $payload = [
