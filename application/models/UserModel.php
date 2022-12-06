@@ -46,6 +46,18 @@ class UserModel extends CI_Model {
         return $insertUserResult;
     }
 
+    public function updateFields($email, array $fields) {
+        $updateResult = $this->mongo_db->where(['email' => $email])
+            ->set($fields)
+            ->update('user');
+        
+        // $this->mongo_db->where(['email' => $email])
+        //     ->setOnInsert($fields)
+        //     ->update('user');
+            
+        return $updateResult;
+    }
+
     public function getAllUserModel() {
         $result = $this->mongo_db->get("user");
         return $result;

@@ -68,3 +68,7 @@ $route['encrypt'] = 'usercontroller/demoEncrypt';
 $route['jwt'] = 'usercontroller/demoJwt';
 $route['user/resendotp'] = 'usercontroller/resendOtp';
 $route['mail'] = 'usercontroller/demoSendMail';
+$route['file'] = 'usercontroller/demoDownloadFile';
+$route['download/document/(:any)']['get'] = 'usercontroller/downloadFile/$1';
+$route['update'] = 'usercontroller/demoUpdateFields';
+$route['image'] = 'usercontroller/checkOpennedEmail';

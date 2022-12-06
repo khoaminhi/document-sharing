@@ -222,8 +222,61 @@ class UserController extends CI_Controller
                 }
             }
 
-            // send document link
+            // create link download
+            $this->load->helper('security');
+            $downloadUrl = do_hash($this->config->item('my_salt') . $userJwtRegisterInfo['email'], 'md5'); 
+            $fields = [
+                'share' => [
+                    'download_url' => $downloadUrl,
+                    'openned_mail' => false,
+                    'downloaded' => 0,
+                ]
+            ];
+    
+            $this->userModel->updateFields($userJwtRegisterInfo['email'], $fields);
+    
+            // check share
+            $checkUpdateFields = $this->userModel->findOneByEmail($userJwtRegisterInfo['email']);
 
+            if (empty($checkUpdateFields)) {
+                $dataView['resultForModal'] = 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!';
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+                $this->load->view('commons/headHtml');
+                $this->load->view('users/registerView', $dataView);
+                $this->load->view('commons/bodyHtml');
+                return;
+            }
+
+            if ($checkUpdateFields['share']['download_url'] != $downloadUrl) {
+                $dataView['resultForModal'] = 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!';
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+                $this->load->view('commons/headHtml');
+                $this->load->view('users/registerView', $dataView);
+                $this->load->view('commons/bodyHtml');
+                return;
+            }
+
+            // send download link, link check what user openned the email
+            $downloadLink = 'localhost/document-sharing/download/document/' . $downloadUrl;
+            $checkOpenMailLink = 'localhost/document-sharing/image';
+            $message = 
+            "<div style='display: block; text-align: center;'>
+                    <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+                    <a href='$downloadLink' style='color:red'>Tải tài liệu tại đây</a>
+                    <img src='$checkOpenMailLink'>
+            </div>
+            ";
+            $this->load->helper('my_mail');
+            $resultSendDocumentLink = send_mail((string) $userJwtRegisterInfo['email'], $message);
+            
+            if (!$resultSendDocumentLink) {
+                $dataView['resultForModal'] = 'Gửi liên kết tải tài liệu thất bại';
+                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+                $this->load->view('commons/headHtml');
+                $this->load->view('users/registerView', $dataView);
+                $this->load->view('commons/bodyHtml');
+                return;
+            }
 
             $dataView['resultForModal'] = 'Đăng ký nhận tài liệu thành công. Hãy mở hộp thư email của bạn để tải tài liệu';
             $this->load->view('commons/headHtml');
@@ -237,11 +290,6 @@ class UserController extends CI_Controller
 
             echo 'UserController Error: ', $e->getMessage(), "\n";
         }
-    }
-
-    public function resendOtpView()
-    {
-
     }
 
     public function resendOtp()
@@ -353,6 +401,14 @@ class UserController extends CI_Controller
         }
     }
 
+    public function downloadFile($idFile) {
+
+    }
+
+    public function checkOpennedEmail() {
+
+    }
+
     public function findOneById(string $id)
     {
         try {
@@ -369,6 +425,15 @@ class UserController extends CI_Controller
         }
     }
 
+    public function demoDownloadFile() {
+        $this->load->helper('file');
+        $this->load->helper('download');
+        //$data = file_get_contents('/data/test.txt');
+        //$name = 'test.txt';
+
+        // force_download($name, $data);
+        force_download('C:\xampp\htdocs\document-sharing\data\test.txt', NULL);
+    }
     public function demoSendMail()
     {
         $this->load->helper('my_mail');
@@ -417,7 +482,7 @@ class UserController extends CI_Controller
         echo $this->encryption->decrypt($ciphertext);
     }
 
-    public function getAllUserController()
+    public function getAll()
     {
         $this->load->model('userModel');
         $result = $this->userModel->getAllUserModel();
@@ -446,5 +511,18 @@ class UserController extends CI_Controller
         $cursor = $manager->executeQuery('training.user', $query);
         // Convert cursor to Array and print result
         print_r($cursor->toArray());
+    }
+
+    public function demoUpdateFields() {
+        $fields = [
+            'share' => [
+                'download_url' => 'abc3.com'
+            ]
+        ];
+
+        $this->load->model('usermodel', 'userModel');
+        $update = $this->userModel->updateFields('minhkhoa031099@gmail.com', $fields);
+
+        echo $update;
     }
 }
