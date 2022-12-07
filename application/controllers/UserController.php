@@ -224,7 +224,7 @@ class UserController extends CI_Controller
 
             // create link download
             $this->load->helper('security');
-            $downloadUrl = do_hash($this->config->item('my_salt') . $userJwtRegisterInfo['email'], 'md5'); 
+            $downloadUrl = do_hash($this->config->item('my_salt') . $userJwtRegisterInfo['email'], 'md5');
             $fields = [
                 'share' => [
                     'download_url' => $downloadUrl,
@@ -232,9 +232,10 @@ class UserController extends CI_Controller
                     'downloaded' => 0,
                 ]
             ];
-    
-            $this->userModel->updateFields($userJwtRegisterInfo['email'], $fields);
-    
+
+            // update download link to db
+            $this->userModel->updateFieldsByEmail($userJwtRegisterInfo['email'], $fields);
+
             // check share
             $checkUpdateFields = $this->userModel->findOneByEmail($userJwtRegisterInfo['email']);
 
@@ -258,17 +259,27 @@ class UserController extends CI_Controller
 
             // send download link, link check what user openned the email
             $downloadLink = 'localhost/document-sharing/download/document/' . $downloadUrl;
-            $checkOpenMailLink = 'localhost/document-sharing/image';
-            $message = 
-            "<div style='display: block; text-align: center;'>
+            $checkOpenMailLink = 'localhost/document-sharing/image/' . $downloadUrl . '/logo.png';
+            $checkOpenMailLink2 = 'https://lh3.googleusercontent.com/pw/AL9nZEVmoyhBVllQvP3U1FR8rISfgRwFzx0pqnR7cd7xkor3WrZuNhhG_TA455Jf6-WWutKEyplABwzGObtnOJGQBaQHl1b7rVm3u6lZziHEfOCHVSJ4FIprKEZhZIxwScliQPgI_7dB-c5H-fa9ti59p8M=w1476-h830-no?authuser=0';
+            $script = "
+            <script>
+            fetch($checkOpenMailLink).then((response) => response.json())
+            .then((data) => console.log(data));
+            </script>
+            ";
+
+            $message =
+                "<div style='display: block; text-align: center;'>
                     <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
                     <a href='$downloadLink' style='color:red'>Tải tài liệu tại đây</a>
-                    <img src='$checkOpenMailLink'>
+                    <a href='$checkOpenMailLink' >check open</a>
+                    <img <!--style='display: none;-->' src='$checkOpenMailLink2'>
+                    $script
             </div>
             ";
             $this->load->helper('my_mail');
             $resultSendDocumentLink = send_mail((string) $userJwtRegisterInfo['email'], $message);
-            
+
             if (!$resultSendDocumentLink) {
                 $dataView['resultForModal'] = 'Gửi liên kết tải tài liệu thất bại';
                 $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
@@ -370,7 +381,7 @@ class UserController extends CI_Controller
 
             $response = array(
                 'message' => 'Gửi mã otp thành công. Quý khách vui lòng kiểm tra hộp thư.'
-                            
+
             );
             $this->output
                 ->set_status_header(200)
@@ -401,11 +412,86 @@ class UserController extends CI_Controller
         }
     }
 
-    public function downloadFile($idFile) {
+    public function downloadFile($idDownloadUrl)
+    {
+        // date_default_timezone_set("Asia/Ho_Chi_Minh");
+        // echo new MongoDB\BSON\UTCDateTime((new DateTime())->getTimestamp());
+        // echo '<br>';
+        // echo date("Y-m-d H:i:s", time());
+        // echo '<br>';
+        // print gmdate("Y-m-d\TH:i:s\Z");
+        // die;
+        $this->load->model('usermodel', 'userModel');
+        $userDocumentResult = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
+        if (empty($userDocumentResult)) {
+            echo 'Liên kết không tồn tại. Vui lòng đăng ký lại!';
+            return;
+        }
 
+        if ($userDocumentResult['share']['downloaded'] > 1) {
+            echo 'Bạn đã quá số lần cho phép tải tài liệu';
+            return;
+        }
+
+        $downloadAmount = $userDocumentResult['share']['downloaded'] + 1;
+
+        $fields = [
+            'share.downloaded' =>  $downloadAmount,
+        ];
+
+        if ($userDocumentResult['share']['downloaded'] === 0) {
+
+            $fields['share.downloaded_time'] = time();//new MongoDB\BSON\UTCDateTime((new DateTime())->getTimestamp());
+        }
+
+        // update db
+        $this->userModel->updateFieldsByIdDownloadUrl($idDownloadUrl, $fields);
+
+        // check update
+        $checkUpdateOpennedMail = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
+        print_r($checkUpdateOpennedMail);
+        if (empty($checkUpdateOpennedMail))
+            throw new Exception('UserController Error: Fail to update user downloading amount');
+
+        if ($checkUpdateOpennedMail['share']['downloaded'] !== $downloadAmount)
+            throw new Exception('UserController Error: Wrong to update user downloading amount value' . (string)$downloadAmount);
+
+        // send file
+        $this->load->helper('file');
+        $this->load->helper('download');
+        echo dirname(__FILE__);
+        force_download(dirname(__FILE__) . '/../../data/test.txt', NULL);
     }
 
-    public function checkOpennedEmail() {
+    public function checkOpennedEmail($idDownloadUrl)
+    {
+        echo $idDownloadUrl;
+        $this->load->model('usermodel', 'userModel');
+        $userDocumentResult = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
+        if (empty($userDocumentResult)) {
+            throw new Exception('UserController Error: Tracking user openned email link not found');
+        }
+
+        if ($userDocumentResult['share']['openned_mail'] === true) {
+            echo 'đã xem mail';
+            return;
+        }
+
+        $fields = [
+            'share.openned_mail' => true,
+            'share.openned_mail_time' => time()
+        ];
+
+        // update db
+        $this->userModel->updateFieldsByIdDownloadUrl($idDownloadUrl, $fields);
+
+        // check update
+        $checkUpdateOpennedMail = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
+        if (empty($checkUpdateOpennedMail))
+            throw new Exception('UserController Error: Fail to update user opening email');
+
+        if ($checkUpdateOpennedMail['share']['openned_mail'] !== true)
+            throw new Exception('UserController Error: Wrong to update user opening email value to true');
 
     }
 
@@ -425,14 +511,16 @@ class UserController extends CI_Controller
         }
     }
 
-    public function demoDownloadFile() {
+    public function demoDownloadFile()
+    {
         $this->load->helper('file');
         $this->load->helper('download');
         //$data = file_get_contents('/data/test.txt');
         //$name = 'test.txt';
 
         // force_download($name, $data);
-        force_download('C:\xampp\htdocs\document-sharing\data\test.txt', NULL);
+        echo dirname(__FILE__);
+        force_download(dirname(__FILE__) . '/../../data/test.txt', NULL);
     }
     public function demoSendMail()
     {
@@ -513,7 +601,8 @@ class UserController extends CI_Controller
         print_r($cursor->toArray());
     }
 
-    public function demoUpdateFields() {
+    public function demoUpdateFields()
+    {
         $fields = [
             'share' => [
                 'download_url' => 'abc3.com'
@@ -521,7 +610,7 @@ class UserController extends CI_Controller
         ];
 
         $this->load->model('usermodel', 'userModel');
-        $update = $this->userModel->updateFields('minhkhoa031099@gmail.com', $fields);
+        $update = $this->userModel->updateFieldsByEmail('minhkhoa031099@gmail.com', $fields);
 
         echo $update;
     }

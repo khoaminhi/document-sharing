@@ -27,7 +27,7 @@
         </div>
         <div>
             <h4 class="text-center mt-5">Đăng ký tài liệu</h4>
-            <form class="was-validated mb-3" method="POST">
+            <form class="was-validated mb-3" method="POST" action="/document-sharing/user/register">
                 <div class="row">
                     <div class="col-md-12">
                         <label for="email">Email (*)</label>

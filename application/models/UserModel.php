@@ -10,6 +10,15 @@ class UserModel extends CI_Model {
     //     // $this->mongodb = new Mongo_db();
     // }
 
+
+    public function findOneByDownloadUrl($idDownloadUrl) {
+        $result = $this->mongo_db->where('share.download_url', $idDownloadUrl)->get('user');
+        if (empty($result))
+            return null;
+
+        return $result[0];
+    }
+
     public function findOneByEmail($email) {
         try {
             $result = $this->mongo_db->where('email', $email)->get('user');
@@ -20,7 +29,7 @@ class UserModel extends CI_Model {
             return $result[0];
         }
         catch (Exception $e) {
-            echo 'UserModel Error - findOne. Message:  ' . $e->getMessage();
+            echo 'UserModel Error - findOneByEmail. Message:  ' . $e->getMessage();
         }
     }
 
@@ -46,8 +55,20 @@ class UserModel extends CI_Model {
         return $insertUserResult;
     }
 
-    public function updateFields($email, array $fields) {
+    public function updateFieldsByEmail($email, array $fields) {
         $updateResult = $this->mongo_db->where(['email' => $email])
+            ->set($fields)
+            ->update('user');
+        
+        // $this->mongo_db->where(['email' => $email])
+        //     ->setOnInsert($fields)
+        //     ->update('user');
+            
+        return $updateResult;
+    }
+
+    public function updateFieldsByIdDownloadUrl($idDownloadUrl, array $fields) {
+        $updateResult = $this->mongo_db->where('share.download_url', $idDownloadUrl)
             ->set($fields)
             ->update('user');
         
