@@ -27,6 +27,7 @@ class UserController extends CI_Controller
     function __construct()
     {
         parent::__construct();
+        $this->load->model('usermodel', 'userModel');
         $this->redisClient = new RedisClient([
             'host' => 'localhost',
             'port' => 6379
@@ -37,6 +38,13 @@ class UserController extends CI_Controller
         $this->load->view('users/khoaView');
     }
 
+    public function manage() {
+        $dataView = [];
+        $dataView['listUser'] = $this->userModel->getAllUser();
+        $this->load->view('commons/headHtml');
+        $this->load->view('managements/manageView', $dataView);
+        $this->load->view('commons/bodyHtml');
+    }
     public function registerView()
     {
         $this->load->library('form_validation');
@@ -230,6 +238,7 @@ class UserController extends CI_Controller
                     'download_url' => $downloadUrl,
                     'openned_mail' => false,
                     'downloaded' => 0,
+                    'send_time' => time()
                 ]
             ];
 
@@ -573,7 +582,7 @@ class UserController extends CI_Controller
     public function getAll()
     {
         $this->load->model('userModel');
-        $result = $this->userModel->getAllUserModel();
+        $result = $this->userModel->getAllUser();
         print_r($result);
     }
 

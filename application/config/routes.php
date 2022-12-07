@@ -72,3 +72,4 @@ $route['file'] = 'usercontroller/demoDownloadFile';
 $route['download/document/(:any)']['get'] = 'usercontroller/downloadFile/$1';
 $route['update'] = 'usercontroller/demoUpdateFields';
 $route['image/(:any)/logo.png'] = 'usercontroller/checkOpennedEmail/$1';
+$route['manage'] = 'usercontroller/manage';

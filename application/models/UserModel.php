@@ -79,8 +79,13 @@ class UserModel extends CI_Model {
         return $updateResult;
     }
 
-    public function getAllUserModel() {
+    public function getAllUser() {
         $result = $this->mongo_db->get("user");
+        date_default_timezone_set("Asia/Ho_Chi_Minh");
+        foreach($result as &$user) {
+            (empty($user['share']) ? false : (empty($user['share']['send_time']))) ? 
+                false : $user['share']['send_time'] = date('m/d/Y H:i:s', $user['share']['send_time']);
+        }
         return $result;
     }
 
