@@ -194,3 +194,52 @@ if (!function_exists('form_mail_send')) {
 
 // ------------------------------------------------------------------------
 
+
+if (!function_exists('form_manage_user_filter')) {
+    /**
+     * Return the array of rules for validating otp form
+     * return array(
+            array(
+                'field' => 'share',
+                'label' => 'Đã gửi',
+                'rules' => 'in_list['0', '1']',
+                'errors' => array(
+                    'in_list' => 'Đã gửi phải là 0 hoặc 1',
+                ),
+            ),
+            ...
+     * @return	array
+     */
+    function form_manage_user_filter()
+    {
+        return array(
+            array(
+                'field' => 'share',
+                'label' => 'Đã gửi',
+                'rules' => "in_list['0', '1']",
+                'errors' => array(
+                    'in_list' => 'Đã gửi phải là 0 hoặc 1',
+                ),
+            ),
+            array(
+                'field' => 'openned_mail',
+                'label' => 'Người dùng đã mở mail',
+                'rules' => "in_list['0', '1']",
+                'errors' => array(
+                    'in_list' => 'Đã mở phải là 0 hoặc 1',
+                ),
+            ),
+            array(
+                'field' => 'downloaded',
+                'label' => 'Đã tải',
+                'rules' => "in_list['0', '1']",
+                'errors' => array(
+                    'in_list' => 'Đã tải phải là 0 hoặc 1',
+                ),
+            ),
+        );
+    }
+}
+
+// ------------------------------------------------------------------------
+

@@ -28,6 +28,12 @@ class UserController extends CI_Controller
     {
         parent::__construct();
         $this->load->model('usermodel', 'userModel');
+        // load form rule for registering user form => form_rule_register_user
+        $this->load->helper('form_rules');
+
+        $this->load->helper(array('form', 'url'));
+        $this->load->library('form_validation');
+
         $this->redisClient = new RedisClient([
             'host' => 'localhost',
             'port' => 6379
@@ -36,10 +42,73 @@ class UserController extends CI_Controller
     public function index()
     {
         $this->load->view('users/khoaView');
+        $this->load->library('pagination');
+
+        $config['base_url'] = '/document-sharing/user';
+        $config['total_rows'] = 200;
+        $config['per_page'] = 20;
+
+        $this->pagination->initialize($config);
+
+        echo $this->pagination->create_links();
     }
 
-    public function manage() {
+    public function filterUser()
+    {
+        $filterData = $this->input->get('data');
+        $checkFilterInput = 0;
+
+        foreach($filterData as $key => $value) {
+            if ($value === '') {
+                $checkFilterInput++;
+            }
+        }
+
+        // if users only enter opened mail or downloaded input, we set share which shared
+        if (($filterData['share'] === '') && ($filterData['openned_mail'] !== '') 
+            || (($filterData['share'] === '') && ($filterData['downloaded'] !== ''))) {
+            $filterData['share'] = '1';
+        }
+
+
+        if ($checkFilterInput === 5) {
+            $response = ['message' => 'Bạn không truyền bất cứ dữ liệu lọc nào'];
+            $this->output
+                ->set_status_header(400)
+                ->set_content_type('application/json', 'utf-8')
+                ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            return;
+        }
+
+        $userFilterResult = $this->userModel->filterUser($filterData);
+        $this->load->helper('render_user_filter_view');
+        $userTableHtml = render_user_filter_view($userFilterResult);
+        $this->output
+            ->set_status_header(200)
+            ->set_content_type('text/html', 'utf-8')
+            ->set_output($userTableHtml);
+        return;
+    }
+
+    public function manage()
+    {
+        // $this->load->library('pagination');
+        // $config['enable_query_strings'] = true;
+        // $config['page_query_string'] = true;
+        // $config['first_link'] = 'Đầu';
+        // $config['last_link'] = 'Cuối';
+        // $config['base_url'] = '/document-sharing/manage/user/page';
+        // $config['total_rows'] = 200;
+        // $config['per_page'] = 20;
+
+        // $this->pagination->initialize($config);
+
+        // echo $this->pagination->create_links();
+
+        // print_r($this->input->get('per_page'));
+
         $dataView = [];
+
         $dataView['listUser'] = $this->userModel->getAllUser();
         $this->load->view('commons/headHtml');
         $this->load->view('managements/manageView', $dataView);
@@ -62,15 +131,7 @@ class UserController extends CI_Controller
             $dataView = array();
             $userRegisterInfo = [];
 
-            // load form rule for registering user form => form_rule_register_user
-            $this->load->helper('form_rules');
-
-            $this->load->helper(array('form', 'url'));
-            $this->load->library('form_validation');
-
             $this->form_validation->set_rules(form_rule_register_user());
-
-            // Load view: modal, head html
 
             // show errors
             if ($this->form_validation->run() == FALSE) {
@@ -82,7 +143,6 @@ class UserController extends CI_Controller
             }
 
             // check existed email
-            $this->load->model('usermodel', 'userModel');
             $checkExistedEmail = $this->userModel->findOneByEmail($this->input->post('email'));
 
             if (!empty($checkExistedEmail)) {
@@ -155,12 +215,6 @@ class UserController extends CI_Controller
             $dataView = array();
             $inputFields = ['code', 'data'];
 
-            // load form rule for registering user form => form_rule_register_user
-            $this->load->helper('form_rules');
-
-            $this->load->helper(array('form', 'url'));
-            $this->load->library('form_validation');
-
             $this->form_validation->set_rules(form_rule_verify_user());
 
             // show errors
@@ -207,7 +261,6 @@ class UserController extends CI_Controller
             }
 
             // insert
-            $this->load->model('userModel');
             $result = $this->userModel->insertUser($userJwtRegisterInfo); // return document _id
 
             // check insert
@@ -318,12 +371,6 @@ class UserController extends CI_Controller
             $dataView = array();
             $inputFields = ['data'];
 
-            // load form rule
-            $this->load->helper('form_rules');
-
-            $this->load->helper(array('form', 'url'));
-            $this->load->library('form_validation');
-
             $this->form_validation->set_rules(form_rule_resendotp());
 
             // show form validation errors
@@ -366,8 +413,7 @@ class UserController extends CI_Controller
                 $this->output
                     ->set_status_header(500)
                     ->set_content_type('application/json', 'utf-8')
-                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
-                    ->_display();
+                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
                 return;
             }
 
@@ -383,8 +429,7 @@ class UserController extends CI_Controller
                 $this->output
                     ->set_status_header(400)
                     ->set_content_type('application/json', 'utf-8')
-                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
-                    ->_display();
+                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
                 return;
             }
 
@@ -430,7 +475,6 @@ class UserController extends CI_Controller
         // echo '<br>';
         // print gmdate("Y-m-d\TH:i:s\Z");
         // die;
-        $this->load->model('usermodel', 'userModel');
         $userDocumentResult = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
         if (empty($userDocumentResult)) {
             echo 'Liên kết không tồn tại. Vui lòng đăng ký lại!';
@@ -445,12 +489,12 @@ class UserController extends CI_Controller
         $downloadAmount = $userDocumentResult['share']['downloaded'] + 1;
 
         $fields = [
-            'share.downloaded' =>  $downloadAmount,
+            'share.downloaded' => $downloadAmount,
         ];
 
         if ($userDocumentResult['share']['downloaded'] === 0) {
 
-            $fields['share.downloaded_time'] = time();//new MongoDB\BSON\UTCDateTime((new DateTime())->getTimestamp());
+            $fields['share.downloaded_time'] = time(); //new MongoDB\BSON\UTCDateTime((new DateTime())->getTimestamp());
         }
 
         // update db
@@ -463,7 +507,7 @@ class UserController extends CI_Controller
             throw new Exception('UserController Error: Fail to update user downloading amount');
 
         if ($checkUpdateOpennedMail['share']['downloaded'] !== $downloadAmount)
-            throw new Exception('UserController Error: Wrong to update user downloading amount value' . (string)$downloadAmount);
+            throw new Exception('UserController Error: Wrong to update user downloading amount value' . (string) $downloadAmount);
 
         // send file
         $this->load->helper('file');
@@ -474,8 +518,6 @@ class UserController extends CI_Controller
 
     public function checkOpennedEmail($idDownloadUrl)
     {
-        echo $idDownloadUrl;
-        $this->load->model('usermodel', 'userModel');
         $userDocumentResult = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
         if (empty($userDocumentResult)) {
             throw new Exception('UserController Error: Tracking user openned email link not found');
@@ -512,7 +554,6 @@ class UserController extends CI_Controller
                 return;
             }
 
-            $this->load->model('userModel');
             $result = $this->userModel->findOne($id);
             print_r($result);
         } catch (Exception $e) {
