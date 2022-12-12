@@ -2439,7 +2439,7 @@ Class Mongo_db
                 $this->limit = $limit;
             }
         }
-        echo $this->limit . PHP_EOL;
+        
         return $this;
     }
 

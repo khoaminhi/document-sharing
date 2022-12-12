@@ -92,24 +92,9 @@ class UserController extends CI_Controller
 
     public function manage()
     {
-        // $this->load->library('pagination');
-        // $config['enable_query_strings'] = true;
-        // $config['page_query_string'] = true;
-        // $config['first_link'] = 'Đầu';
-        // $config['last_link'] = 'Cuối';
-        // $config['base_url'] = '/document-sharing/manage/user/page';
-        // $config['total_rows'] = 200;
-        // $config['per_page'] = 20;
-
-        // $this->pagination->initialize($config);
-
-        // echo $this->pagination->create_links();
-
-        // print_r($this->input->get('per_page'));
-
         $dataView = [];
 
-        $dataView['listUser'] = $this->userModel->getAllUser();
+        $dataView['listUser'] = $this->userModel->getLimit();
         $this->load->view('commons/headHtml');
         $this->load->view('managements/manageView', $dataView);
         $this->load->view('commons/bodyHtml');
@@ -126,8 +111,6 @@ class UserController extends CI_Controller
     {
         try {
             $inputFields = array('email', 'name', 'age', 'gender', 'occupation', 'address');
-            $userDocument = [];
-            $urlVerify = "/user/verifyregister?";
             $dataView = array();
             $userRegisterInfo = [];
 

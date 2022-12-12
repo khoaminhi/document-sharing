@@ -10,13 +10,65 @@ class UserModel extends CI_Model
     // {
     //     // $this->mongodb = new Mongo_db();
     // }
+    public function transform(&$users)
+    {
+        if (is_array($users)) {
+            foreach ($users as &$user) {
+                if (isset($user['share'])) {
+                    isset($user['share']['send_time']) == true ? 
+                        $user['send_time'] = date('m/d/Y H:i:s', $user['share']['send_time'])
+                        : $user['send_time'] = null;
+                    isset($user['share']['openned_mail_time']) == true ? 
+                        $user['openned_mail_time'] = date('m/d/Y H:i:s', $user['share']['openned_mail_time'])
+                        : $user['openned_mail_time'] = null;
+                    isset($user['share']['downloaded_time']) ? 
+                        $user['downloaded_time'] = date('m/d/Y H:i:s', $user['share']['downloaded_time'])
+                        : $user['downloaded_time'] = null;
+                    
+                    //
+                    unset($user['share']);
+                } else {
+                    $user['send_time'] = null;
+                    $user['openned_mail_time'] = null;
+                    $user['downloaded_time'] = null;
 
-    public function filterUser($data) {
+                    // unset
+                    unset($user['share']);
+                }
+            }
+        }
+    }
+
+    public function getLimit()
+    {
+        $result = $this->mongo_db->limit(5)->get('user');
+        $documentAmount = $this->mongo_db->count('user');
+
+        // foreach ($result as &$user) {
+        //     if (isset($user['share'])) {
+        //         if (isset($user['share']['send_time']))
+        //             $user['share']['send_time'] = date('m/d/Y H:i:s', $user['share']['send_time']);
+                
+        //         if (isset($user['share']['openned_mail_time']))
+        //             $user['share']['openned_mail_time'] = date('m/d/Y H:i:s', $user['share']['openned_mail_time']);
+        //         if (isset($user['share']['downloaded_time']))
+        //             $user['share']['downloaded_time'] = date('m/d/Y H:i:s', $user['share']['downloaded_time']);
+        //     }
+        // }
+
+        $this->transform($result);
+
+        if (count($result) > 0) 
+            $result[0]['totalDocument'] = $documentAmount;
+        return $result;
+    }
+    public function filterUser($data, $options = ['skip' => 0, 'limit' => 2])
+    {
         $arrFields = ['email' => 'email', 'name' => 'name'];
         $conditions = [];
         $result = null;
 
-        foreach($arrFields as $queryKey => $fieldKey) {
+        foreach ($arrFields as $queryKey => $fieldKey) {
             if ($data[$queryKey] !== '') {
                 $conditions[$fieldKey] = $this->mongo_db->regex($data[$queryKey], 'i', false, false);
             }
@@ -28,29 +80,35 @@ class UserModel extends CI_Model
             } else {
                 $conditions['share'] = $this->mongo_db->exists(true);
                 if ($data['openned_mail'] !== '') {
-                    ($data['openned_mail'] === '0') ?
+                    ($data['openned_mail'] === '0') ? 
                         $conditions['share.openned_mail'] = false :
                         $conditions['share.openned_mail'] = true;
                 }
                 if ($data['downloaded'] !== '') {
-                    ($data['downloaded'] === '0') ?
+                    ($data['downloaded'] === '0') ? 
                         $conditions['share.downloaded'] = 0 :
                         $conditions['share.downloaded'] = $this->mongo_db->gt(0);
                 }
             }
         }
 
-        $result = $this->mongo_db->get_Where('user', $conditions);
-        foreach ($result as &$user) {
-            if (isset($user['share'])) {
-                if (isset($user['share']['send_time']))
-                    $user['share']['send_time'] = date('m/d/Y H:i:s', $user['share']['send_time']);
-                if (isset($user['share']['openned_mail_time']))
-                    $user['share']['openned_mail_time'] = date('m/d/Y H:i:s', $user['share']['openned_mail_time']);
-                if (isset($user['share']['downloaded_time']))
-                    $user['share']['downloaded_time'] = date('m/d/Y H:i:s', $user['share']['downloaded_time']);
-            }
-        }
+        $result = $this->mongo_db->where($conditions)
+            ->offset($options['skip'] * $options['limit'])
+            ->limit($options['limit'])
+            ->get('user');
+
+        // foreach ($result as &$user) {
+        //     if (isset($user['share'])) {
+        //         if (isset($user['share']['send_time']))
+        //             $user['share']['send_time'] = date('m/d/Y H:i:s', $user['share']['send_time']);
+        //         if (isset($user['share']['openned_mail_time']))
+        //             $user['share']['openned_mail_time'] = date('m/d/Y H:i:s', $user['share']['openned_mail_time']);
+        //         if (isset($user['share']['downloaded_time']))
+        //             $user['share']['downloaded_time'] = date('m/d/Y H:i:s', $user['share']['downloaded_time']);
+        //     }
+        // }
+
+        $this->transform($result);
         return $result;
     }
 

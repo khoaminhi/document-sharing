@@ -75,3 +75,4 @@ $route['image/(:any)/logo.png'] = 'usercontroller/checkOpennedEmail/$1';
 $route['manage/user/page'] = 'usercontroller/manage';
 $route['manage/user/page/(:any)'] = 'usercontroller/manage';
 $route['manage/user/filter'] = 'usercontroller/filterUser';
+

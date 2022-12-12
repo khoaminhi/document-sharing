@@ -27,19 +27,19 @@ if (!function_exists('render_user_filter_view')) {
             </tr>";
 
         foreach ($userFilterResult as $u) {
-            $sendTime = '';
-            $opennedMailTime = '';
-            $downloadedTime = '';
+            $sendTime = $sendTime = $u['share']['send_time'];
+            $opennedMailTime = $u['share']['openned_mail_time'];
+            $downloadedTime = $u['share']['downloaded_time'];
             
-            if ((empty($u['share']) && !empty($u['share']['send_time']))) {
-                $sendTime = $u['share']['send_time'];
-            }
-            if ((empty($u['share']) && !empty($u['share']['openned_mail_time']))) {
-                $opennedMailTime = $u['share']['openned_mail_time'];
-            }
-            if ((empty($u['share']) && !empty($u['share']['downloaded_time']))) {
-                $downloadedTime = $u['share']['downloaded_time'];
-            }
+            // if ((empty($u['share']) && !empty($u['share']['send_time']))) {
+            //     $sendTime = $u['share']['send_time'];
+            // }
+            // if ((empty($u['share']) && !empty($u['share']['openned_mail_time']))) {
+            //     $opennedMailTime = $u['share']['openned_mail_time'];
+            // }
+            // if ((empty($u['share']) && !empty($u['share']['downloaded_time']))) {
+            //     $downloadedTime = $u['share']['downloaded_time'];
+            // }
 
             $userTable = $userTable . "<tr>
                 <td>" . $u['email'] . "</td>
