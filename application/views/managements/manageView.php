@@ -110,7 +110,7 @@
             {
                 field: "email", title: "Email",
                 filterable: {
-                    mode: "row",
+                    //mode: "row",
                     cell: {
                         // enabled: true,
                         delay: 1500,
