@@ -53,40 +53,47 @@ class UserController extends CI_Controller
         echo $this->pagination->create_links();
     }
 
-    public function filterUser()
+    public function filter()
     {
-        $filterData = $this->input->get('data');
-        $checkFilterInput = 0;
+        $arrFields = ['send_time' => 'share', 'email' => 'email', 'name' => 'name',
+            'openned_mail_time' => 'openned_mail', 'downloaded_time' => 'downloaded'
+        ];
+        $filterDataTemp = $this->input->get('filter[data]');
+        $filterData = [];
 
-        foreach($filterData as $key => $value) {
-            if ($value === '') {
-                $checkFilterInput++;
+        $skip = $this->input->get('skip') ? $this->input->get('skip') : 0;
+        $limit = $this->input->get('take') ? $this->input->get('take') : 3;
+        
+        // if (!is_array($filterDataTemp) || empty($filterDataTemp)) {
+        //     $response = $this->userModel->getLimit($skip, $limit);
+        //     $this->output
+        //         ->set_status_header(200)
+        //         ->set_content_type('application/json', 'utf-8')
+        //         ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        //     return;
+        // }
+
+        foreach($arrFields as $key => $value) {
+            if (isset($filterDataTemp[$key]) && $filterDataTemp[$key] !== '') {
+                $filterData[$value] = $filterDataTemp[$key];
             }
         }
 
-        // if users only enter opened mail or downloaded input, we set share which shared
-        if (($filterData['share'] === '') && ($filterData['openned_mail'] !== '') 
-            || (($filterData['share'] === '') && ($filterData['downloaded'] !== ''))) {
-            $filterData['share'] = '1';
-        }
-
-
-        if ($checkFilterInput === 5) {
-            $response = ['message' => 'Bạn không truyền bất cứ dữ liệu lọc nào'];
+        if (!is_array($filterData) || empty($filterData)) {
+            $response = $this->userModel->getLimit($skip, $limit);
             $this->output
-                ->set_status_header(400)
+                ->set_status_header(200)
                 ->set_content_type('application/json', 'utf-8')
                 ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             return;
         }
+        
+        $userFilterResult = $this->userModel->filter($filterData, ['skip' => $skip, 'limit' => $limit]);
 
-        $userFilterResult = $this->userModel->filterUser($filterData);
-        $this->load->helper('render_user_filter_view');
-        $userTableHtml = render_user_filter_view($userFilterResult);
         $this->output
             ->set_status_header(200)
-            ->set_content_type('text/html', 'utf-8')
-            ->set_output($userTableHtml);
+            ->set_content_type('application/json', 'utf-8')
+            ->set_output(json_encode($userFilterResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return;
     }
 

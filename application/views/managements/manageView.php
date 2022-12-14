@@ -105,24 +105,96 @@
 
     // Target the div element by using jQuery and then call the kendoGrid() method.
     $("#my-grid").kendoGrid({
-        height: "400px",
+        height: "300px",
         columns: [
-            { field: "email", title: "Email" },
-            { field: "name", title: "Tên" },
-            { field: "send_time", title: "Đã gửi" },
-            { field: "openned_mail_time", title: "Đã xem" },
-            { field: "downloaded_time", title: "Đã tải" },
+            {
+                field: "email", title: "Email",
+                filterable: {
+                    mode: "row",
+                    cell: {
+                        // enabled: true,
+                        delay: 1500,
+                        operator: "contains",
+                        suggestionOperator: "contains"
+                    },
+
+                }
+            },
+            { 
+                field: "name", title: "Tên",
+                filterable: {
+                    mode: "row",
+                    cell: {
+                        // enabled: true,
+                        delay: 1500,
+                        operator: "contains",
+                        suggestionOperator: "contains"
+                    },
+
+                } 
+            },
+            {
+                field: "send_time", title: "Đã gửi",
+                filterable: {
+                    enable: false,
+                    cell: {
+                        delay: 500,
+                        template: sendTimeColumnTemplate,
+                    }
+                }
+            },
+            { 
+                field: "openned_mail_time", title: "Đã xem",
+                filterable: {
+                    enable: false,
+                    cell: {
+                        delay: 500,
+                        template: sendTimeColumnTemplate,
+                    }
+                } 
+            },
+            { 
+                field: "downloaded_time", title: "Đã tải",
+                filterable: {
+                    enable: false,
+                    cell: {
+                        delay: 500,
+                        template: sendTimeColumnTemplate,
+                    }
+                }
+            },
         ],
-        toolbar: ["create", "save"],
-        filterable: true,
+        //toolbar: ["create", "save"],
+        filterable: {
+            mode: "row", //"menu, row"
+        },
+        // filterable: true,
+        
         pageable: {
-            pageSize: 2,
-            alwaysVisible: true
+            pageSizes: [2, 3, 5, 10],
+            alwaysVisible: true,
+            //position: 'top',
         },
         sortable: true,
         editable: true,
         dataSource: {
             data: listUser,
+            // type: 'json',
+            transport: {
+                read: "/document-sharing/manage/user/filter",
+                parameterMap: function (data) {
+                    if (data?.filter?.filters) {
+                        data.filter['data'] = {};
+                        data.filter.filters.forEach(element => {
+                            data.filter.data[element.field] = element.value;
+                        });
+
+                    }
+                    console.log(data)
+                    return data;
+                }
+                
+            },
             schema: {
                 total: function () {
                     return listUser[0]?.totalDocument || 0;
@@ -132,12 +204,30 @@
                     fields: {
                         email: { type: "string", editable: false }, // The ID field in this case is a number. Additionally, do not allow users to edit this field.
                         name: { type: "string" },
-                        send_time: { type: 'datetime' },
-                        'openned_mail': { type: "string" },
-                        'downloaded': { type: "string" },
+                        send_time: { type: 'string' },
+                        openned_mail: { type: "string" },
+                        downloaded: { type: "string" },
                     }
                 }
-            }
+            },
+            serverPaging: true,
+            pageSize: 2,
+            // page: 3,
+            serverFiltering: true,
+            serverSorting: false,
+            // serverGrouping: true,
+            // group: { field: "category", dir: "desc" }
         }
     });
+
+    function sendTimeColumnTemplate(args) {
+        args.element.kendoDropDownList({
+            dataSource: [{ value: '1', text: "Đã" }, { value: '0', text: "Chưa" }],
+            optionLabel: "--Chọn--",
+            dataTextField: "text",
+            dataValueField: "value",
+            valuePrimitive: true,
+        });
+    }
+
 </script>
