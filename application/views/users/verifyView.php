@@ -138,3 +138,51 @@
             });
         });
     </script>
+
+
+
+<div class="container">
+    <h4 class="text-center mt-5">Kendo UI</h4>
+    <div class="d-flex justify-content-center">
+
+        <div class="w-50 border p-1 rounded shadow p-3 mb-5 bg-white">
+            <form id="form" method="POST" action="/document-sharing/user/verifyregister"></form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .data-hidden {
+        display: none;
+    }
+</style>
+<script>
+    $(document).ready(function () {
+        $("#form").kendoForm({
+            validatable: true,//{ validationSummary: true },
+            orientation: "vertical",
+            formData: {
+                code: '',
+                data: "<?php if (!empty($userEncryptRegisterInfo)) echo $userEncryptRegisterInfo ?>",
+            },
+            items: [
+                {
+                    field: "code",
+                    label: "Mã:",
+                    title: 'mã',
+                    validation: {
+                        required: { message: 'Bạn phải nhập trường này' },
+                    }
+                },
+                {
+                    field: "data",
+                    label: '',
+                    attributes: {
+                        class: "data-hidden"
+                    },
+                    validation: { required: { message: 'Bạn phải nhập trường này' }, }
+                },
+            ]
+        });
+    });
+</script>
