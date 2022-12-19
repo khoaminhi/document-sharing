@@ -35,14 +35,37 @@ function UpdateSendStatus($mailPayload) {
      */
 
     global $mongo_db;
-    print_r($mongo_db->get('user'));
+    $fields = [
+        'share' => [
+            'download_url' => $mailPayload->downloadUrlId,
+            'openned_mail' => false,
+            'downloaded' => 0,
+            'send_time' => $mailPayload->SendTimestamp
+        ]
+    ];
+
+    // update download link to db
+    $mongo_db->where(['email' => $mailPayload->email])
+        ->set($fields)
+        ->update('user');
+
+    // check share
+    $checkUpdateFields = $mongo_db->where('email', $mailPayload->email)->get('user');
+
+    if (empty($checkUpdateFields)) {
+        echo 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!';
+    }
+
+    if ($checkUpdateFields['share']['download_url'] != $mailPayload->downloadUrlId) {
+        echo 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!';
+    }
     echo "----------------" . PHP_EOL ;
 }
 
-$WATCHTUBE = BEANSTALKD_USER_REGISTER_TUBE;
+$WATCHTUBE = BEANSTALKD_SEND_DOCUMENT_LINK_TUBE;
 $queue = new Pheanstalk\Pheanstalk("127.0.0.1"); // OR IP Address of Server running beanstalkd
 
-$PIDFILE = __DIR__ . "/worker-emmail-smailer.pid";
+$PIDFILE = __DIR__ . "/worker-send-download-link.pid";
 
 touch($PIDFILE);
 
@@ -71,16 +94,18 @@ while (file_exists($PIDFILE)) {
                 )
             );
             
-            $mail->setFrom(EMAIL, EMAIL_PASSWORD);
+            $mail->setFrom(EMAIL, 'Document Sharing');
             // receiver
             $mail->addAddress($mailPayload->email);
 
-            // Name is optional
+            
+            
+
             $mail->isHTML(true);                                  // Set email format to HTML
-            $mail->Subject = 'Document Sharing - Xác minh đăng ký';
+            $mail->Subject = 'Document Sharing - Link tải tài liệu';
             $mail->Body = $mailPayload->message;
             
-            /** Test queue and send email 
+            //** Test queue and send email 
             $mailPayload->SendResult = $mail->send();
             if (!$mailPayload->SendResult) {
                 $mailPayload->ErrorInfo = $mail->ErrorInfo;
@@ -90,14 +115,14 @@ while (file_exists($PIDFILE)) {
             /*
              */
             
-            //** Test queue, do not send email 
+            /** Test queue, do not send email 
             $mailPayload->SendResult = true;
             $mailPayload->SendTimestamp = time();
             /* 
              */
             
             //Excute Callback function
-            if (property_exists($mailPayload, 'Callback')) {
+            if ($mailPayload->SendResult && property_exists($mailPayload, 'Callback')) {
                 if (function_exists($mailPayload->Callback)) {
                     call_user_func($mailPayload->Callback, $mailPayload);
                 }

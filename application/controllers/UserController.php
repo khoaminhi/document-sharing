@@ -22,9 +22,9 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\SignatureInvalidException;
 
-define('BEANSTALKD_USER_REGISTER_TUBE', 'BEANSTALKD_USER_REGISTER_TUBE');
 define('BEANSTALKD_USER_VERIFY_REGISTER_TUBE', 'BEANSTALKD_USER_VERIFY_REGISTER_TUBE');
 define('BEANSTALKD_USER_RESEND_VERIFY_TUBE', 'BEANSTALKD_USER_RESEND_VERIFY_TUBE');
+define('BEANSTALKD_SEND_DOCUMENT_LINK_TUBE', 'BEANSTALKD_SEND_DOCUMENT_LINK_TUBE');
 
 
 class UserController extends CI_Controller
@@ -137,7 +137,7 @@ class UserController extends CI_Controller
     //     var_dump($isContinue);
     //     //die;
     //     while ($isContinue) {
-    //         while ($job = $this->pheanstalk->reserveFromTube(BEANSTALKD_USER_REGISTER_TUBE, $queueTimeout)) {
+    //         while ($job = $this->pheanstalk->reserveFromTube(BEANSTALKD_USER_VERIFY_REGISTER_TUBE, $queueTimeout)) {
     //             try {
     //                 // if (!$job) {
     //                 //     echo 'No job existed';
@@ -156,7 +156,7 @@ class UserController extends CI_Controller
     //             } catch (Exception $e) {
     //                 $jobData = $job->getData();
     //                 $this->pheanstalk->delete($job);
-    //                 $this->pheanstalk->putInTube(BEANSTALKD_USER_REGISTER_TUBE, $jobData);
+    //                 $this->pheanstalk->putInTube(BEANSTALKD_USER_VERIFY_REGISTER_TUBE, $jobData);
     //                 exit();
     //             }
 
@@ -167,17 +167,29 @@ class UserController extends CI_Controller
 
     //     echo 'oki con de';
     // }
-    public function enqueueRegister(string $email, int $sixDigitRandomNumber)
+    public function enqueueSendMail(string $email, $message, $tube)
     {
         try {
+            if (!$email || !$message || !$tube)
+                throw new Exception('Argument of enqueueSendMail are not null');
             $message = [
                 'email' => $email,
-                'message' => "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
-                <h2>$sixDigitRandomNumber</h2></div>",
-                'Callback' => 'UpdateSendStatus',
+                'message' => $message,
+                //'Callback' => 'UpdateSendStatus',
             ];
 
-            $this->pheanstalk->putInTube(BEANSTALKD_USER_REGISTER_TUBE, json_encode($message));
+            $this->pheanstalk->putInTube($tube, json_encode($message));
+        } catch (Exception $e) {
+            echo "Lỗi máy chủ, gửi mail thất bại. Message: $e->getMessage()";
+        }
+    }
+
+    public function enqueueSendDownloadLink($data, string $tube) {
+        try {
+            if (!$data || !$tube)
+                throw new Exception('Argument of enqueueSendMail are not empty');
+
+            $this->pheanstalk->putInTube($tube, json_encode($data));
         } catch (Exception $e) {
             echo "Lỗi máy chủ, gửi mail thất bại. Message: $e->getMessage()";
         }
@@ -219,10 +231,12 @@ class UserController extends CI_Controller
 
             // generate otp
             $sixDigitRandomNumber = random_int(100000, 999999);
+            $message = "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+            <h2>$sixDigitRandomNumber</h2></div>";
 
             // verify email by sending code
             // enqueue to beantalkd
-            $this->enqueueRegister($this->input->post('email'), $sixDigitRandomNumber);
+            $this->enqueueSendMail($this->input->post('email'), $message, BEANSTALKD_USER_VERIFY_REGISTER_TUBE);
 
             // if (!$result) {
             //     $dataView['resultForModal'] = 'Gửi mã otp thất bại. Quý khách vui lòng đăng ký lại';
@@ -344,75 +358,76 @@ class UserController extends CI_Controller
                 }
             }
 
-            // create link download
-            $this->load->helper('security');
-            $downloadUrl = do_hash($this->config->item('my_salt') . $userJwtRegisterInfo['email'], 'md5');
-            $fields = [
-                'share' => [
-                    'download_url' => $downloadUrl,
-                    'openned_mail' => false,
-                    'downloaded' => 0,
-                    'send_time' => time()
-                ]
-            ];
+            // // create link download
+            // $this->load->helper('security');
+            // $downloadUrl = do_hash($this->config->item('my_salt') . $userJwtRegisterInfo['email'], 'md5');
+            // $fields = [
+            //     'share' => [
+            //         'download_url' => $downloadUrl,
+            //         'openned_mail' => false,
+            //         'downloaded' => 0,
+            //         'send_time' => time()
+            //     ]
+            // ];
 
-            // update download link to db
-            $this->userModel->updateFieldsByEmail($userJwtRegisterInfo['email'], $fields);
+            // // update download link to db
+            // $this->userModel->updateFieldsByEmail($userJwtRegisterInfo['email'], $fields);
 
-            // check share
-            $checkUpdateFields = $this->userModel->findOneByEmail($userJwtRegisterInfo['email']);
+            // // check share
+            // $checkUpdateFields = $this->userModel->findOneByEmail($userJwtRegisterInfo['email']);
 
-            if (empty($checkUpdateFields)) {
-                $dataView['resultForModal'] = 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!';
-                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
-                return;
-            }
+            // if (empty($checkUpdateFields)) {
+            //     $dataView['resultForModal'] = 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!';
+            //     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+            //     $this->load->view('commons/headHtml');
+            //     $this->load->view('users/registerView', $dataView);
+            //     $this->load->view('commons/bodyHtml');
+            //     return;
+            // }
 
-            if ($checkUpdateFields['share']['download_url'] != $downloadUrl) {
-                $dataView['resultForModal'] = 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!';
-                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
-                return;
-            }
+            // if ($checkUpdateFields['share']['download_url'] != $downloadUrl) {
+            //     $dataView['resultForModal'] = 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!';
+            //     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+            //     $this->load->view('commons/headHtml');
+            //     $this->load->view('users/registerView', $dataView);
+            //     $this->load->view('commons/bodyHtml');
+            //     return;
+            // }
 
-            // send download link, link check what user openned the email
-            $downloadLink = 'localhost/document-sharing/download/document/' . $downloadUrl;
-            $checkOpenMailLink = 'localhost/document-sharing/image/' . $downloadUrl . '/logo.png';
-            $checkOpenMailLink2 = 'https://lh3.googleusercontent.com/pw/AL9nZEVmoyhBVllQvP3U1FR8rISfgRwFzx0pqnR7cd7xkor3WrZuNhhG_TA455Jf6-WWutKEyplABwzGObtnOJGQBaQHl1b7rVm3u6lZziHEfOCHVSJ4FIprKEZhZIxwScliQPgI_7dB-c5H-fa9ti59p8M=w1476-h830-no?authuser=0';
-            $script = "
-            <script>
-            fetch($checkOpenMailLink).then((response) => response.json())
-            .then((data) => console.log(data));
-            </script>
-            ";
+            // send download link, link check what user openned the email   
+            $mailPayload = new stdClass();    
+            $downloadUrlId = hash('md5', $this->config->item('my_salt') . $userJwtRegisterInfo['email']);
+            $mailPayload->downloadUrlId = $downloadUrlId;
+            $mailPayload->downloadLink = 'localhost/document-sharing/download/document/' . $downloadUrlId;
+            $mailPayload->checkOpenMailLink = 'localhost/document-sharing/image/' . $downloadUrlId . '/logo.png';
 
-            $message =
+            $mailPayload->email = $userJwtRegisterInfo['email'];
+            $mailPayload->message =
                 "<div style='display: block; text-align: center;'>
                     <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
-                    <a href='$downloadLink' style='color:red'>Tải tài liệu tại đây</a>
-                    <a href='$checkOpenMailLink' >check open</a>
-                    <img <!--style='display: none;-->' src='$checkOpenMailLink2'>
-                    $script
+                    <a href='$mailPayload->downloadLink' style='color:red'>Tải tài liệu tại đây</a>
+                    <a href='$mailPayload->checkOpenMailLink' >check open</a>
+                    <img <!--style='display: none;-->' src='$mailPayload->checkOpenMailLink'>
             </div>
             ";
-            $this->load->helper('my_mail');
-            $resultSendDocumentLink = send_mail((string) $userJwtRegisterInfo['email'], $message);
+            $mailPayload->Callback = 'UpdateSendStatus';
 
-            if (!$resultSendDocumentLink) {
-                $dataView['resultForModal'] = 'Gửi liên kết tải tài liệu thất bại';
-                $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
-                return;
-            }
+            $this->enqueueSendDownloadLink($mailPayload, BEANSTALKD_SEND_DOCUMENT_LINK_TUBE);
+            
+            //$this->load->helper('my_mail');
+            //$resultSendDocumentLink = send_mail((string) $userJwtRegisterInfo['email'], $message);
 
-            $dataView['resultForModal'] = 'Đăng ký nhận tài liệu thành công. Hãy mở hộp thư email của bạn để tải tài liệu';
+            // if (!$resultSendDocumentLink) {
+            //     $dataView['resultForModal'] = 'Gửi liên kết tải tài liệu thất bại';
+            //     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
+            //     $this->load->view('commons/headHtml');
+            //     $this->load->view('users/registerView', $dataView);
+            //     $this->load->view('commons/bodyHtml');
+            //     return;
+            // }
+
+            $dataView['resultForModal'] = 'Đăng ký nhận tài liệu thành công. Hãy mở hộp thư email của bạn để tải tài liệu.
+                 Lưu ý, hệ thống đang xử lý, có thể mất vài phút để hệ thống gửi mail';
             $this->load->view('commons/headHtml');
             $this->load->view('users/registerView', $dataView);
             $this->load->view('commons/bodyHtml');
@@ -457,27 +472,30 @@ class UserController extends CI_Controller
 
             // generate otp
             $sixDigitRandomNumber = random_int(100000, 999999);
+            $message = "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+                <h2>$sixDigitRandomNumber</h2></div>";
 
             // resend otp code by email
-            $message = "<div style='display: block; text-align: center;'>
-                    <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
-                    <h2>$sixDigitRandomNumber</h2>
-                </div>
-            ";
-            $this->load->helper('my_mail');
-            $result = send_mail((string) $userJwtRegisterInfo['email'], $message);
+            // $message = "<div style='display: block; text-align: center;'>
+            //         <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+            //         <h2>$sixDigitRandomNumber</h2>
+            //     </div>
+            // ";
+            // $this->load->helper('my_mail');
+            // $result = send_mail((string) $userJwtRegisterInfo['email'], $message);
 
-            if (!$result) {
-                $response = array(
-                    'message' => 'Gửi mã otp thất bại. Quý khách vui lòng thực hiện gửi lại'
-                );
-                $this->output
-                    ->set_status_header(500)
-                    ->set_content_type('application/json', 'utf-8')
-                    ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-                return;
-            }
-
+            // if (!$result) {
+            //     $response = array(
+            //         'message' => 'Gửi mã otp thất bại. Quý khách vui lòng thực hiện gửi lại'
+            //     );
+            //     $this->output
+            //         ->set_status_header(500)
+            //         ->set_content_type('application/json', 'utf-8')
+            //         ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            //     return;
+            // }
+            $this->enqueueSendMail((string)$userJwtRegisterInfo['email'], $message, BEANSTALKD_USER_RESEND_VERIFY_TUBE);
+                
             // cache otp by redis
             $otpRedisKey = "email_otp:" . (string) $userJwtRegisterInfo['email'];
             $this->redisClient->set($otpRedisKey, $sixDigitRandomNumber, 'EX', 180); // 3 minutes
@@ -495,7 +513,7 @@ class UserController extends CI_Controller
             }
 
             $response = array(
-                'message' => 'Gửi mã otp thành công. Quý khách vui lòng kiểm tra hộp thư.'
+                'message' => 'Đã gửi mã otp. Quý khách vui lòng kiểm tra hộp thư.'
 
             );
             $this->output
