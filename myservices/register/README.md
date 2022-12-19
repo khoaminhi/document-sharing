@@ -1,0 +1,1 @@
+run: PS C:\xampp\htdocs\document-sharing> php myservices\register\worker-email-smailer.php

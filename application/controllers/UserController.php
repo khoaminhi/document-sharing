@@ -1,6 +1,8 @@
 <?php
 use TheSeer\Tokenizer\Exception;
 use function PHPUnit\Framework\throwException;
+use Pheanstalk\Pheanstalk;
+use GO\Scheduler;
 
 defined('BASEPATH') or exit('No direct script access allowed');
 require 'C:\xampp\htdocs\document-sharing\vendor\autoload.php';
@@ -20,6 +22,10 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Firebase\JWT\SignatureInvalidException;
 
+define('BEANSTALKD_USER_REGISTER_TUBE', 'BEANSTALKD_USER_REGISTER_TUBE');
+define('BEANSTALKD_USER_VERIFY_REGISTER_TUBE', 'BEANSTALKD_USER_VERIFY_REGISTER_TUBE');
+define('BEANSTALKD_USER_RESEND_VERIFY_TUBE', 'BEANSTALKD_USER_RESEND_VERIFY_TUBE');
+
 
 class UserController extends CI_Controller
 {
@@ -38,6 +44,8 @@ class UserController extends CI_Controller
             'host' => 'localhost',
             'port' => 6379
         ]);
+
+        $this->pheanstalk = new Pheanstalk('127.0.0.1');
     }
     public function index()
     {
@@ -55,15 +63,19 @@ class UserController extends CI_Controller
 
     public function filter()
     {
-        $arrFields = ['send_time' => 'share', 'email' => 'email', 'name' => 'name',
-            'openned_mail_time' => 'openned_mail', 'downloaded_time' => 'downloaded'
+        $arrFields = [
+            'send_time' => 'share',
+            'email' => 'email',
+            'name' => 'name',
+            'openned_mail_time' => 'openned_mail',
+            'downloaded_time' => 'downloaded'
         ];
         $filterDataTemp = $this->input->get('filter[data]');
         $filterData = [];
 
         $skip = $this->input->get('skip') ? $this->input->get('skip') : 0;
         $limit = $this->input->get('take') ? $this->input->get('take') : 3;
-        
+
         // if (!is_array($filterDataTemp) || empty($filterDataTemp)) {
         //     $response = $this->userModel->getLimit($skip, $limit);
         //     $this->output
@@ -73,7 +85,7 @@ class UserController extends CI_Controller
         //     return;
         // }
 
-        foreach($arrFields as $key => $value) {
+        foreach ($arrFields as $key => $value) {
             if (isset($filterDataTemp[$key]) && $filterDataTemp[$key] !== '') {
                 $filterData[$value] = $filterDataTemp[$key];
             }
@@ -87,7 +99,7 @@ class UserController extends CI_Controller
                 ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             return;
         }
-        
+
         $userFilterResult = $this->userModel->filter($filterData, ['skip' => $skip, 'limit' => $limit]);
 
         $this->output
@@ -114,6 +126,62 @@ class UserController extends CI_Controller
         $this->load->view('commons/bodyHtml');
     }
 
+    // move to myservices
+    // public function dequeueRegister()
+    // {
+    //     $continue = $this->input->get('continue');
+    //     $timeout = $this->input->get('timeout');
+    //     $isContinue = ($continue === 'true');
+    //     $queueTimeout = ($timeout && is_int($timeout) && $timeout >= 0) ? $timeout : 15;
+    //     var_dump($continue);
+    //     var_dump($isContinue);
+    //     //die;
+    //     while ($isContinue) {
+    //         while ($job = $this->pheanstalk->reserveFromTube(BEANSTALKD_USER_REGISTER_TUBE, $queueTimeout)) {
+    //             try {
+    //                 // if (!$job) {
+    //                 //     echo 'No job existed';
+    //                 //     return;
+    //                 //     // throw new Exception("Dequeue user registering data hasn't data", 500);
+    //                 // }
+
+    //                 $sendMailRegisterData = json_decode($job->getData(), true);
+    //                 // echo $job->getData();
+    //                 // echo '<br><pre>';
+    //                 // print_r($sendMailRegisterData);
+    //                 $this->load->helper('my_mail');
+    //                 //send_mail($sendMailRegisterData['email'], $sendMailRegisterData['message']);
+    //                 echo $job->getData();
+    //                 $this->pheanstalk->delete($job);
+    //             } catch (Exception $e) {
+    //                 $jobData = $job->getData();
+    //                 $this->pheanstalk->delete($job);
+    //                 $this->pheanstalk->putInTube(BEANSTALKD_USER_REGISTER_TUBE, $jobData);
+    //                 exit();
+    //             }
+
+    //             if (!$isContinue)
+    //                 exit();
+    //         }
+    //     }
+
+    //     echo 'oki con de';
+    // }
+    public function enqueueRegister(string $email, int $sixDigitRandomNumber)
+    {
+        try {
+            $message = [
+                'email' => $email,
+                'message' => "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+                <h2>$sixDigitRandomNumber</h2></div>",
+                'Callback' => 'UpdateSendStatus',
+            ];
+
+            $this->pheanstalk->putInTube(BEANSTALKD_USER_REGISTER_TUBE, json_encode($message));
+        } catch (Exception $e) {
+            echo "Lỗi máy chủ, gửi mail thất bại. Message: $e->getMessage()";
+        }
+    }
     public function register()
     {
         try {
@@ -126,6 +194,12 @@ class UserController extends CI_Controller
             // show errors
             if ($this->form_validation->run() == FALSE) {
                 $dataView['resultForModal'] = 'Nhập dữ liệu đăng ký không hợp lệ';
+                foreach ($inputFields as $field) {
+                    if (form_error($field, '<div class="alert alert-danger">', '</div>')) {
+                        $dataView['resultForModal'] .= form_error('gender', '<div class="alert alert-danger">', '</div>');
+                    }
+                }
+                
                 $this->load->view('commons/headHtml');
                 $this->load->view('users/registerView', $dataView);
                 $this->load->view('commons/bodyHtml');
@@ -147,19 +221,16 @@ class UserController extends CI_Controller
             $sixDigitRandomNumber = random_int(100000, 999999);
 
             // verify email by sending code
-            $message = "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
-                <h2>$sixDigitRandomNumber</h2></div>
-            ";
-            $this->load->helper('my_mail');
-            $result = send_mail($this->input->post('email'), $message);
+            // enqueue to beantalkd
+            $this->enqueueRegister($this->input->post('email'), $sixDigitRandomNumber);
 
-            if (!$result) {
-                $dataView['resultForModal'] = 'Gửi mã otp thất bại. Quý khách vui lòng đăng ký lại';
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
-                return;
-            }
+            // if (!$result) {
+            //     $dataView['resultForModal'] = 'Gửi mã otp thất bại. Quý khách vui lòng đăng ký lại';
+            //     $this->load->view('commons/headHtml');
+            //     $this->load->view('users/registerView', $dataView);
+            //     $this->load->view('commons/bodyHtml');
+            //     return;
+            // }
 
             // cache otp by redis
             $otpRedisKey = "email_otp:" . (string) $this->input->post('email');
@@ -654,4 +725,122 @@ class UserController extends CI_Controller
 
         echo $update;
     }
+
+    public function demoBeanstalkd()
+    {
+
+        // Hopefully you're using Composer autoloading.
+
+        $pheanstalk = new Pheanstalk('127.0.0.1');
+
+        // ----------------------------------------
+// producer (queues jobs)
+
+        $pheanstalk
+            ->useTube('testtube')
+            ->put("job payload goes here\n");
+
+        // ----------------------------------------
+// worker (performs jobs)
+
+        $job = $pheanstalk
+            ->watch('testtube')
+            ->ignore('default')
+            ->reserve();
+
+        echo $job->getData();
+
+        $pheanstalk->delete($job);
+
+        // ----------------------------------------
+// check server availability
+        echo '<pre>';
+        echo $pheanstalk->getConnection()->isServiceListening(); // true or false
+        echo '<br>';
+        print_r($pheanstalk->listTubes());
+        echo '<br>';
+        print_r($pheanstalk->listTubesWatched());
+        echo '<br>';
+        print_r($pheanstalk->listTubeUsed());
+        echo '<br>';
+        print_r($pheanstalk->statsTube('smailer'));
+    }
+
+    public function demoProducerBeanstalkd()
+    {
+        // put to default tube
+        // echo $this->pheanstalk->put(json_encode(['name' => 'name', 1 => 1]));
+
+        //put to specific tube
+        // echo $this->pheanstalk->useTube('tube-name')->put(json_encode(['specific-tube' => 2]));
+
+        // put to priority-tube
+        // echo $this->pheanstalk->useTube('priority-tube')->put(json_encode(['priority-tube' => 1]), 1);
+        // echo $this->pheanstalk->useTube('priority-tube')->put(json_encode(['priority-tube' => 100]), 100);
+        // echo $this->pheanstalk->useTube('priority-tube')->put(json_encode(['priority-tube' => 2000]), 2000);
+        // // priority 0
+        // echo $this->pheanstalk->useTube('priority-tube')->put(json_encode(['priority-tube' => 0]), 0);
+
+        // put with delay, that would be delay and then pass to ready state to wait for execute
+        // echo 'delay, job id: ';
+        // echo $this->pheanstalk->putInTube('delay-tube', json_encode(['delay' => 5]), null, 5);
+
+        // put with ttr
+        echo $this->pheanstalk->putInTube('ttr-tube', json_encode(['ttr' => 10]), null, 15, 0);
+
+    }
+
+    public function demoWorkerBeanstalkd()
+    {
+        //watch, default get the deffault tube, the job will be exist (not use delete command)
+        // if you pause it and call => Fatal error: Maximum execution time of 120 seconds exceeded in C:\xampp\htdocs\document-sharing\vendor\pda\pheanstalk\src\Socket\StreamFunctions.php
+        // print_r( $this->pheanstalk->reserve()->getData());
+
+        // delay
+        // if hasn't job and call again => Fatal error: Maximum execution time of 120 seconds exceeded in C:\xampp\htdocs\document-sharing\vendor\pda\pheanstalk\src\Socket\StreamFunctions.php on line 58
+        // $delayJob = $this->pheanstalk->reserveFromTube('delay-tube');
+        // print_r($delayJob->getData());
+        // $this->pheanstalk->delete($delayJob);
+
+
+        // call with timeout
+        // $delayJob = $this->pheanstalk->reserveFromTube('delay-tube', 2);
+        // if (!$delayJob)
+        //     echo 'timeout 2s';
+
+        //ttr
+        $ttrJob = $this->pheanstalk->reserveFromTube('ttr-tube');
+        echo 'ttr 1: ';
+        print_r($ttrJob->getData());
+        $this->pheanstalk->bury($ttrJob);
+        echo 'ttr bury: ';
+        print_r($ttrJob->getData());
+        $this->pheanstalk->delete($ttrJob);
+
+        // no tube existed before, will be create
+        // $ttrJob = $this->pheanstalk->reserveFromTube('no-tube');
+    }
 }
+
+
+// // Create a new scheduler
+// $scheduler = new Scheduler();
+
+// $scheduler->call(
+//     function ($args) {
+//         return $args['user'];
+//     },
+//     [
+//         ['user' => $user],
+//     ],
+//     'myCustomIdentifier'
+// );
+
+// $scheduler->php('script.php')->everyMinute();
+
+// // Let the scheduler execute jobs which are due.
+// $scheduler->run();
+
+// $schedulerWorker = new Scheduler();
+// $schedulerWorker->php('scheduler.php');
+// $schedulerWorker->work();

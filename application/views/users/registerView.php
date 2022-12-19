@@ -69,6 +69,7 @@
                         <label class="custom-control-label" for="customControlValidation3">Nữ</label>
                     </div>
                 </div>
+                <?php echo form_error('gender', '<div class="alert alert-danger">', '</div>') ?>
             </div>
         </div><br />
         <div class="row">

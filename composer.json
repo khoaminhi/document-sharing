@@ -15,7 +15,9 @@
 		"mongodb/mongodb": "^1.12",
 		"predis/predis": "^2.0",
 		"firebase/php-jwt": "^6.3",
-		"pear/mail_mime": "^1.10"
+		"pear/mail_mime": "^1.10",
+		"pda/pheanstalk": "^3.2.1",
+		"peppeocchi/php-cron-scheduler": "^4.0"
 	},
 	"suggest": {
 		"paragonie/random_compat": "Provides better randomness in PHP 5.x"

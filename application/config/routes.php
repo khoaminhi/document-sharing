@@ -76,3 +76,8 @@ $route['manage/user/page'] = 'usercontroller/manage';
 $route['manage/user/page/(:any)'] = 'usercontroller/manage';
 $route['manage/user/filter'] = 'usercontroller/filter';
 
+$route['queue'] = 'usercontroller/demoBeanstalkd';
+$route['queue/producer'] = 'usercontroller/demoProducerBeanstalkd';
+$route['queue/worker'] = 'usercontroller/demoWorkerBeanstalkd';
+
+$route['queue/dequeue']['get'] = 'usercontroller/dequeueRegister';

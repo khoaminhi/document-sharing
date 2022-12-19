@@ -55,10 +55,10 @@ if (!function_exists('form_rule_register_user')) {
             array(
                 'field' => 'gender',
                 'label' => 'Giới tính',
-                'rules' => 'required|in_list[M, F]',
+                'rules' => 'required|in_list[M,F]',
                 'errors' => array(
                     'required' => 'Bạn phải nhập giới của mình',
-                    'in_list' => 'Giới tính của bạn phải là nam hoặc nữ (M hoặc F)'
+                    'in_list' => 'Giới tính của bạn phải là nam hoặc nữ'
                 ),
             ),
             array(
@@ -242,4 +242,5 @@ if (!function_exists('form_manage_user_filter')) {
 }
 
 // ------------------------------------------------------------------------
+
 

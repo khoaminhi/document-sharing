@@ -33,3 +33,5 @@ user_guide_src/cilexer/pycilexer.egg-info/*
 
 # My email config
 application/config/config.php
+
+myconfig.php
