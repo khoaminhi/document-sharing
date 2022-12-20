@@ -52,6 +52,7 @@ while (file_exists($PIDFILE)) {
     echo $count++;
     while ($job = $queue->reserveFromTube($WATCHTUBE, 15)) {
         try {
+            echo PHP_EOL, 'resend otp ', $job->getData(), PHP_EOL;
             $mailPayload = json_decode($job->getData(), false);
             $mail = new PHPMailer();
             $mail->isSMTP();
@@ -80,7 +81,7 @@ while (file_exists($PIDFILE)) {
             $mail->Subject = 'Document Sharing - Xác minh đăng ký';
             $mail->Body = $mailPayload->message;
             
-            //** Test queue and send email 
+            /** Test queue and send email 
             $mailPayload->SendResult = $mail->send();
             if (!$mailPayload->SendResult) {
                 $mailPayload->ErrorInfo = $mail->ErrorInfo;
@@ -90,7 +91,7 @@ while (file_exists($PIDFILE)) {
             /*
              */
             
-            /** Test queue, do not send email 
+            //** Test queue, do not send email 
             $mailPayload->SendResult = true;
             $mailPayload->SendTimestamp = time();
             /* 

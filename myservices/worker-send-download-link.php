@@ -52,12 +52,13 @@ function UpdateSendStatus($mailPayload) {
     // check share
     $checkUpdateFields = $mongo_db->where('email', $mailPayload->email)->get('user');
 
+    print_r($checkUpdateFields);
     if (empty($checkUpdateFields)) {
-        echo 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!';
+        echo 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!' . PHP_EOL;
     }
 
     if ($checkUpdateFields['share']['download_url'] != $mailPayload->downloadUrlId) {
-        echo 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!';
+        echo 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!' . PHP_EOL;
     }
     echo "----------------" . PHP_EOL ;
 }
@@ -75,6 +76,7 @@ while (file_exists($PIDFILE)) {
     echo $count++;
     while ($job = $queue->reserveFromTube($WATCHTUBE, 15)) {
         try {
+            echo PHP_EOL, 'send link ', $job->getData(), PHP_EOL;
             $mailPayload = json_decode($job->getData(), false);
             $mail = new PHPMailer();
             $mail->isSMTP();
@@ -105,7 +107,7 @@ while (file_exists($PIDFILE)) {
             $mail->Subject = 'Document Sharing - Link tải tài liệu';
             $mail->Body = $mailPayload->message;
             
-            //** Test queue and send email 
+            /** Test queue and send email 
             $mailPayload->SendResult = $mail->send();
             if (!$mailPayload->SendResult) {
                 $mailPayload->ErrorInfo = $mail->ErrorInfo;
@@ -115,7 +117,7 @@ while (file_exists($PIDFILE)) {
             /*
              */
             
-            /** Test queue, do not send email 
+            //** Test queue, do not send email 
             $mailPayload->SendResult = true;
             $mailPayload->SendTimestamp = time();
             /* 

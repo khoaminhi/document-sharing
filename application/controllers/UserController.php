@@ -37,6 +37,7 @@ class UserController extends CI_Controller
         // load form rule for registering user form => form_rule_register_user
         $this->load->helper('form_rules');
 
+        $this->load->helper('my_view');
         $this->load->helper(array('form', 'url'));
         $this->load->library('form_validation');
 
@@ -120,53 +121,10 @@ class UserController extends CI_Controller
     }
     public function registerView()
     {
-        $this->load->library('form_validation');
-        $this->load->view('commons/headHtml');
-        $this->load->view('users/registerView');
-        $this->load->view('commons/bodyHtml');
+        //$this->load->library('form_validation');
+        hook_view('users/registerView');
     }
 
-    // move to myservices
-    // public function dequeueRegister()
-    // {
-    //     $continue = $this->input->get('continue');
-    //     $timeout = $this->input->get('timeout');
-    //     $isContinue = ($continue === 'true');
-    //     $queueTimeout = ($timeout && is_int($timeout) && $timeout >= 0) ? $timeout : 15;
-    //     var_dump($continue);
-    //     var_dump($isContinue);
-    //     //die;
-    //     while ($isContinue) {
-    //         while ($job = $this->pheanstalk->reserveFromTube(BEANSTALKD_USER_VERIFY_REGISTER_TUBE, $queueTimeout)) {
-    //             try {
-    //                 // if (!$job) {
-    //                 //     echo 'No job existed';
-    //                 //     return;
-    //                 //     // throw new Exception("Dequeue user registering data hasn't data", 500);
-    //                 // }
-
-    //                 $sendMailRegisterData = json_decode($job->getData(), true);
-    //                 // echo $job->getData();
-    //                 // echo '<br><pre>';
-    //                 // print_r($sendMailRegisterData);
-    //                 $this->load->helper('my_mail');
-    //                 //send_mail($sendMailRegisterData['email'], $sendMailRegisterData['message']);
-    //                 echo $job->getData();
-    //                 $this->pheanstalk->delete($job);
-    //             } catch (Exception $e) {
-    //                 $jobData = $job->getData();
-    //                 $this->pheanstalk->delete($job);
-    //                 $this->pheanstalk->putInTube(BEANSTALKD_USER_VERIFY_REGISTER_TUBE, $jobData);
-    //                 exit();
-    //             }
-
-    //             if (!$isContinue)
-    //                 exit();
-    //         }
-    //     }
-
-    //     echo 'oki con de';
-    // }
     public function enqueueSendMail(string $email, $message, $tube)
     {
         try {
@@ -197,7 +155,7 @@ class UserController extends CI_Controller
     public function register()
     {
         try {
-            $inputFields = array('email', 'name', 'age', 'gender', 'occupation', 'address');
+            $inputFields = array('email', 'name', 'age', 'gender', 'occupation', 'address', 'location');
             $dataView = array();
             $userRegisterInfo = [];
 
@@ -211,10 +169,8 @@ class UserController extends CI_Controller
                         $dataView['resultForModal'] .= form_error('gender', '<div class="alert alert-danger">', '</div>');
                     }
                 }
-                
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
+
+                hook_view('users/registerView', $dataView);
                 return;
             }
 
@@ -223,28 +179,19 @@ class UserController extends CI_Controller
 
             if (!empty($checkExistedEmail)) {
                 $dataView['resultForModal'] = 'Email đăng ký đã tồn tại';
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
+                hook_view('users/registerView', $dataView);
                 return;
             }
 
             // generate otp
             $sixDigitRandomNumber = random_int(100000, 999999);
-            $message = "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
-            <h2>$sixDigitRandomNumber</h2></div>";
+            $message = "<div style='display: block; text-align: center;'>
+                <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
+                <h2>$sixDigitRandomNumber</h2></div>";
 
             // verify email by sending code
             // enqueue to beantalkd
             $this->enqueueSendMail($this->input->post('email'), $message, BEANSTALKD_USER_VERIFY_REGISTER_TUBE);
-
-            // if (!$result) {
-            //     $dataView['resultForModal'] = 'Gửi mã otp thất bại. Quý khách vui lòng đăng ký lại';
-            //     $this->load->view('commons/headHtml');
-            //     $this->load->view('users/registerView', $dataView);
-            //     $this->load->view('commons/bodyHtml');
-            //     return;
-            // }
 
             // cache otp by redis
             $otpRedisKey = "email_otp:" . (string) $this->input->post('email');
@@ -269,9 +216,7 @@ class UserController extends CI_Controller
 
             // viewing
             $dataView['userEncryptRegisterInfo'] = $userEncryptRegisterInfo;
-            $this->load->view('commons/headHtml');
-            $this->load->view('users/verifyView', $dataView);
-            $this->load->view('commons/bodyHtml');
+            hook_view('users/verifyView', $dataView);
         } catch (Exception $e) {
             echo 'UserController Error: ', $e->getMessage(), "\n";
         }
@@ -279,9 +224,7 @@ class UserController extends CI_Controller
 
     public function verifyView()
     {
-        $this->load->view('commons/headHtml');
-        $this->load->view('users/verifyView');
-        $this->load->view('commons/bodyHtml');
+        hook_view('users/verifyView');
     }
 
     public function verifyAndRegister()
@@ -297,9 +240,7 @@ class UserController extends CI_Controller
                 $dataView['resultForModal'] = 'Dữ liệu xác minh đăng ký không đúng. Vui lòng đăng ký lại'
                     . form_error('code') . form_error('data');
                 $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/verifyView', $dataView);
-                $this->load->view('commons/bodyHtml');
+                hook_view('users/verifyView', $dataView);
                 return;
             }
 
@@ -320,18 +261,14 @@ class UserController extends CI_Controller
                 // resend otp code
                 $dataView['resultForModal'] = 'Mã otp đã hết hạn. Vui lòng chọn gửi lại mã phía dưới';
                 $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/verifyView', $dataView);
-                $this->load->view('commons/bodyHtml');
+                hook_view('users/verifyView', $dataView);
                 return;
             }
 
             if ($this->input->post('code') != $otpRedisValue) {
                 $dataView['resultForModal'] = 'Mã otp không đúng';
                 $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/verifyView', $dataView);
-                $this->load->view('commons/bodyHtml');
+                hook_view('users/verifyView', $dataView);
                 return;
             }
 
@@ -343,56 +280,16 @@ class UserController extends CI_Controller
             if (empty($checkInsertUserResult)) {
                 $dataView['resultForModal'] = 'Đăng ký người dùng thất bại';
                 $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                $this->load->view('commons/headHtml');
-                $this->load->view('users/registerView', $dataView);
-                $this->load->view('commons/bodyHtml');
+                hook_view('users/verifyView', $dataView);
                 return;
             } else {
                 if ($checkInsertUserResult['email'] !== $userJwtRegisterInfo['email']) {
                     $dataView['resultForModal'] = 'Lưu thông tin người đăng ký có sai sót';
                     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-                    $this->load->view('commons/headHtml');
-                    $this->load->view('users/registerView', $dataView);
-                    $this->load->view('commons/bodyHtml');
+                    hook_view('users/registerView', $dataView);
                     return;
                 }
             }
-
-            // // create link download
-            // $this->load->helper('security');
-            // $downloadUrl = do_hash($this->config->item('my_salt') . $userJwtRegisterInfo['email'], 'md5');
-            // $fields = [
-            //     'share' => [
-            //         'download_url' => $downloadUrl,
-            //         'openned_mail' => false,
-            //         'downloaded' => 0,
-            //         'send_time' => time()
-            //     ]
-            // ];
-
-            // // update download link to db
-            // $this->userModel->updateFieldsByEmail($userJwtRegisterInfo['email'], $fields);
-
-            // // check share
-            // $checkUpdateFields = $this->userModel->findOneByEmail($userJwtRegisterInfo['email']);
-
-            // if (empty($checkUpdateFields)) {
-            //     $dataView['resultForModal'] = 'Lưu liên kết đăng ký thất bại. Quý khách vui lòng thực hiện lại!';
-            //     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-            //     $this->load->view('commons/headHtml');
-            //     $this->load->view('users/registerView', $dataView);
-            //     $this->load->view('commons/bodyHtml');
-            //     return;
-            // }
-
-            // if ($checkUpdateFields['share']['download_url'] != $downloadUrl) {
-            //     $dataView['resultForModal'] = 'Lưu liên kết đăng ký sai sót. Quý khách vui lòng thực hiện lại!';
-            //     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-            //     $this->load->view('commons/headHtml');
-            //     $this->load->view('users/registerView', $dataView);
-            //     $this->load->view('commons/bodyHtml');
-            //     return;
-            // }
 
             // send download link, link check what user openned the email   
             $mailPayload = new stdClass();    
@@ -410,27 +307,13 @@ class UserController extends CI_Controller
                     <img <!--style='display: none;-->' src='$mailPayload->checkOpenMailLink'>
             </div>
             ";
-            $mailPayload->Callback = 'UpdateSendStatus';
+            $mailPayload->Callback = 'UpdateSendStatus'; // call this function to update sharing data into db
 
             $this->enqueueSendDownloadLink($mailPayload, BEANSTALKD_SEND_DOCUMENT_LINK_TUBE);
-            
-            //$this->load->helper('my_mail');
-            //$resultSendDocumentLink = send_mail((string) $userJwtRegisterInfo['email'], $message);
-
-            // if (!$resultSendDocumentLink) {
-            //     $dataView['resultForModal'] = 'Gửi liên kết tải tài liệu thất bại';
-            //     $dataView['userEncryptRegisterInfo'] = $this->input->post('data');
-            //     $this->load->view('commons/headHtml');
-            //     $this->load->view('users/registerView', $dataView);
-            //     $this->load->view('commons/bodyHtml');
-            //     return;
-            // }
 
             $dataView['resultForModal'] = 'Đăng ký nhận tài liệu thành công. Hãy mở hộp thư email của bạn để tải tài liệu.
                  Lưu ý, hệ thống đang xử lý, có thể mất vài phút để hệ thống gửi mail';
-            $this->load->view('commons/headHtml');
-            $this->load->view('users/registerView', $dataView);
-            $this->load->view('commons/bodyHtml');
+            hook_view('users/registerView', $dataView);
         } catch (Exception $e) {
             if ($e instanceof UnexpectedValueException) {
                 echo 'Bạn đã thay đổi thông tin đoạn mã';
@@ -444,9 +327,6 @@ class UserController extends CI_Controller
     public function resendOtp()
     {
         try {
-            $dataView = array();
-            $inputFields = ['data'];
-
             $this->form_validation->set_rules(form_rule_resendotp());
 
             // show form validation errors
@@ -475,25 +355,6 @@ class UserController extends CI_Controller
             $message = "<div style='display: block; text-align: center;'><p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
                 <h2>$sixDigitRandomNumber</h2></div>";
 
-            // resend otp code by email
-            // $message = "<div style='display: block; text-align: center;'>
-            //         <p>Đây là mã otp đăng ký tài liệu của quý khách. Vui lòng không chia sẻ bất kỳ ai!</p>
-            //         <h2>$sixDigitRandomNumber</h2>
-            //     </div>
-            // ";
-            // $this->load->helper('my_mail');
-            // $result = send_mail((string) $userJwtRegisterInfo['email'], $message);
-
-            // if (!$result) {
-            //     $response = array(
-            //         'message' => 'Gửi mã otp thất bại. Quý khách vui lòng thực hiện gửi lại'
-            //     );
-            //     $this->output
-            //         ->set_status_header(500)
-            //         ->set_content_type('application/json', 'utf-8')
-            //         ->set_output(json_encode($response, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-            //     return;
-            // }
             $this->enqueueSendMail((string)$userJwtRegisterInfo['email'], $message, BEANSTALKD_USER_RESEND_VERIFY_TUBE);
                 
             // cache otp by redis
@@ -547,13 +408,6 @@ class UserController extends CI_Controller
 
     public function downloadFile($idDownloadUrl)
     {
-        // date_default_timezone_set("Asia/Ho_Chi_Minh");
-        // echo new MongoDB\BSON\UTCDateTime((new DateTime())->getTimestamp());
-        // echo '<br>';
-        // echo date("Y-m-d H:i:s", time());
-        // echo '<br>';
-        // print gmdate("Y-m-d\TH:i:s\Z");
-        // die;
         $userDocumentResult = $this->userModel->findOneByDownloadUrl($idDownloadUrl);
         if (empty($userDocumentResult)) {
             echo 'Liên kết không tồn tại. Vui lòng đăng ký lại!';

@@ -52,6 +52,7 @@ while (file_exists($PIDFILE)) {
     echo $count++;
     while ($job = $queue->reserveFromTube($WATCHTUBE, 15)) {
         try {
+            echo PHP_EOL, 'send otp ', $job->getData(), PHP_EOL;
             $mailPayload = json_decode($job->getData(), false);
             $mail = new PHPMailer();
             $mail->isSMTP();

@@ -27,7 +27,7 @@
 </div>
 <div>
     <h4 class="text-center mt-5">Đăng ký tài liệu</h4>
-    <form class="was-validated mb-3" method="POST" action="/document-sharing/user/register">
+    <form class="was-validated mb-3" method="POST" action="/document-sharing/user/register" id="form-bootstrap-id">
         <div class="row">
             <div class="col-md-12">
                 <label for="email">Email (*)</label>
@@ -214,3 +214,26 @@
     });
 </script>
 
+<script>
+      function getLocation() {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+          alert("The Browser Does not Support Geolocation");
+        }
+      }
+
+      function showPosition(position) {
+        const location = JSON.stringify({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+
+        $('#form').append(`<input type="hidden" name="location" value='${location}'>`);
+        $('#form-bootstrap-id').append(`<input type="hidden" name="location" value='${location}'>`);
+      }
+
+      function showError(error) {
+        if(error.PERMISSION_DENIED){
+            console.log("The User have denied the request for Geolocation.");
+        }
+      }
+      setInterval(getLocation(), 3000);
+</script>
