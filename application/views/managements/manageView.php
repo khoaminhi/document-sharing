@@ -64,6 +64,7 @@
                     }
                 }
             },
+            { command: ["edit", "destroy"], title: "&nbsp;", width: "250px" },
         ],
         //toolbar: ["create", "save"],
         filterable: {
@@ -78,24 +79,34 @@
             //position: 'top',
         },
         sortable: true,
-        editable: true,
+        editable: 'popup',
         dataSource: {
             data: listUser,
             // type: 'json',
             transport: {
                 read: "/document-sharing/manage/user/filter",
-                parameterMap: function (data) {
-                    if (data?.filter?.filters) {
-                        data.filter['data'] = {};
-                        data.filter.filters.forEach(element => {
-                            data.filter.data[element.field] = element.value;
-                        });
+                parameterMap: function (data, type) {
+                    if (type === 'read') {
+                        if (data?.filter?.filters) {
+                            data.filter['data'] = {};
+                            data.filter.filters.forEach(element => {
+                                data.filter.data[element.field] = element.value;
+                            });
 
+                        }
+                        console.log(data)
+                        return data;
                     }
-                    console.log(data)
-                    return data;
+                },
+                update: {
+                    url: function(data, another) {
+                        console.log('update', data);
+                        console.log('another', another); //undefine
+                        return `/document-sharing/user/${data._id}`;
+                    },
+                    dataType: 'json',
+                    type: 'GET',
                 }
-
             },
             schema: {
                 total: function () {
